@@ -1,3 +1,4 @@
+import internetarchive
 import json
 import os
 import subprocess
@@ -62,12 +63,12 @@ def extract_keywords(segments):
 
 
 def download_transcript(video_id, output_dir):
-    url = f"https://www.youtube.com/watch?v={video_id}"
+    url = f"https://archive.org/details/{video_id}"
     out_path = os.path.join(output_dir, f"{video_id}.en.srt")
     if not os.path.exists(out_path):
         subprocess.run(
             [
-                "yt-dlp",
+                "venv311/bin/yt-dlp",
                 "--write-auto-sub",
                 "--sub-lang",
                 "en",
@@ -85,22 +86,31 @@ def download_transcript(video_id, output_dir):
     return None
 
 
-def search_youtube(query, max_results=3):
-    """Use yt-dlp to search YouTube without API key"""
-    cmd = ["yt-dlp", f"ytsearch{max_results}:{query}", "--get-id", "--get-title"]
-    output = subprocess.check_output(cmd).decode().splitlines()
-    results = [
-        {"title": output[i], "id": output[i + 1]} for i in range(0, len(output), 2)
-    ]
-    return results
+def search_archive_org(query, max_results=3):
+    """Search Archive.org for videos."""
+    try:
+        # Search for items with mediatype 'movies' and sort by downloads
+        search_results = internetarchive.search_items(
+            f'({query}) AND mediatype:(movies)'
+        )
+        results = []
+        for r in search_results:
+            item = internetarchive.get_item(r['identifier'])
+            results.append({'title': item.metadata['title'], 'id': item.identifier})
+            if len(results) >= max_results:
+                break
+        return results
+    except Exception as e:
+        print(f"  Archive.org search error: {e}")
+        return []
 
 
 def download_video(video_id, output_dir):
-    url = f"https://www.youtube.com/watch?v={video_id}"
+    url = f"https://archive.org/details/{video_id}"
     out_path = os.path.join(output_dir, f"{video_id}.mp4")
     if not os.path.exists(out_path):
         subprocess.run(
-            ["yt-dlp", "-f", "best[height<=720]", "-o", out_path, url],
+            ["venv311/bin/yt-dlp", "-f", "best[height<=720]", "-o", out_path, url],
             check=False,
         )
     return out_path
@@ -154,10 +164,10 @@ def main():
     segments = extract_keywords(segments)
 
     for i, seg in enumerate(segments):
-        query = " ".join(seg["keywords"]) or seg["text"].split()[0:3]
+        query = " ".join(seg["keywords"]) or " ".join(seg["text"].split()[:3])
         print(f"[{i}] Searching: {query}")
         try:
-            results = search_youtube(query, SEARCH_RESULTS)
+            results = search_archive_org(query, SEARCH_RESULTS)
         except Exception as e:
             print("  search error:", e)
             results = []
