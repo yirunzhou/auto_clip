@@ -7,6 +7,7 @@ import argparse
 
 import numpy as np
 import pysrt
+import requests
 import torch
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer, util
@@ -18,7 +19,12 @@ OUTPUT_DIR = "output"
 RESULT_JSON = "clips_metadata.json"
 SEARCH_RESULTS = 2  # how many YouTube results per caption
 CLIP_BUFFER = 1.5  # seconds extra for editors
+TRANSCRIPT_SOURCES = {"archive.org", "c-span"}
 # =============================
+
+
+# logging templates
+NO_SEARCH_RESULT = '{search_source} returns no result for {keywords}'
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -62,9 +68,49 @@ def extract_keywords(segments):
     return segments
 
 
-def download_transcript(video_id, output_dir):
-    url = f"https://archive.org/details/{video_id}"
-    out_path = os.path.join(output_dir, f"{video_id}.en.srt")
+def generate_queries(segment, max_attempts=3):
+    """Generate a few fallback queries per caption."""
+    queries = []
+    keywords = [kw for kw in segment.get("keywords", []) if kw]
+    joined = " ".join(keywords).strip()
+    if joined:
+        queries.append(joined)
+    if keywords:
+        queries.extend(keywords)
+    text = segment.get("text", "").strip()
+    if text:
+        words = text.split()
+        snippet = " ".join(words[:5]).strip()
+        if snippet:
+            queries.append(snippet)
+        queries.append(text)
+    deduped = []
+    seen = set()
+    for q in queries:
+        q = q.strip()
+        if not q:
+            continue
+        lower = q.lower()
+        if lower in seen:
+            continue
+        deduped.append(q)
+        seen.add(lower)
+        if len(deduped) >= max_attempts:
+            break
+    if not deduped:
+        deduped.append("geopolitics")
+    return deduped
+
+
+def _sanitize_id(identifier, fallback="video"):
+    identifier = identifier or fallback
+    safe = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in identifier)
+    return safe or fallback
+
+
+def download_transcript(video_id, video_url, output_dir):
+    safe_id = _sanitize_id(video_id)
+    out_path = os.path.join(output_dir, f"{safe_id}.en.srt")
     if not os.path.exists(out_path):
         subprocess.run(
             [
@@ -75,7 +121,7 @@ def download_transcript(video_id, output_dir):
                 "--skip-download",
                 "-o",
                 out_path,
-                url,
+                video_url,
             ],
             check=False,
             stdout=subprocess.DEVNULL,
@@ -89,14 +135,28 @@ def download_transcript(video_id, output_dir):
 def search_archive_org(query, max_results=3):
     """Search Archive.org for videos."""
     try:
-        # Search for items with mediatype 'movies' and sort by downloads
+        # Search for items with mediatype 'movies'
         search_results = internetarchive.search_items(
             f'({query}) AND mediatype:(movies)'
         )
         results = []
         for r in search_results:
             item = internetarchive.get_item(r['identifier'])
-            results.append({'title': item.metadata['title'], 'id': item.identifier})
+
+            # Construct URL
+            video_url = f"https://archive.org/details/{item.identifier}"
+
+            # Get license information
+            license_url = item.metadata.get('licenseurl', 'N/A')
+
+            results.append({
+                'title': item.metadata.get('title', 'No Title'),
+                'id': item.identifier,
+                'url': video_url,
+                'license': license_url,
+                'source': 'archive.org'
+            })
+
             if len(results) >= max_results:
                 break
         return results
@@ -105,14 +165,124 @@ def search_archive_org(query, max_results=3):
         return []
 
 
-def download_video(video_id, output_dir):
-    url = f"https://archive.org/details/{video_id}"
-    out_path = os.path.join(output_dir, f"{video_id}.mp4")
-    if not os.path.exists(out_path):
-        subprocess.run(
-            ["venv311/bin/yt-dlp", "-f", "best[height<=720]", "-o", out_path, url],
-            check=False,
+def search_cspan(query, max_results=3):
+    """Search C-SPAN for relevant videos."""
+    try:
+        params = {
+            "searchtype": "Videos",
+            "sort": "Most+Recent",
+            "format": "json",
+            "query": query,
+            "number": max_results,
+        }
+        resp = requests.get("https://www.c-span.org/search/api/", params=params, timeout=10)
+        resp.raise_for_status()
+        payload = resp.json()
+        raw_results = payload.get("results") or payload.get("items") or []
+        results = []
+        for item in raw_results:
+            video_id = str(item.get("id") or item.get("programid") or item.get("programId") or "")
+            video_url = item.get("url") or (
+                f"https://www.c-span.org/video/?{video_id}" if video_id else None)
+            if not video_url:
+                continue
+            results.append(
+                {
+                    "title": item.get("title") or item.get("programtitle") or "C-SPAN segment",
+                    "id": video_id or _sanitize_id(video_url),
+                    "url": video_url,
+                    "license": "C-SPAN Terms of Service",
+                    "source": "c-span",
+                }
+            )
+            if len(results) >= max_results:
+                break
+        return results
+    except Exception as e:
+        print(f"  C-SPAN search error: {e}")
+        return []
+
+
+def search_nasa(query, max_results=3):
+    """Search NASA media API for video clips."""
+    try:
+        params = {"q": query, "media_type": "video"}
+        resp = requests.get(
+            "https://images-api.nasa.gov/search", params=params, timeout=10
         )
+        resp.raise_for_status()
+        items = resp.json().get("collection", {}).get("items", [])
+        results = []
+        for item in items:
+            data = (item.get("data") or [])
+            if not data:
+                continue
+            meta = data[0]
+            nasa_id = meta.get("nasa_id")
+            if not nasa_id:
+                continue
+            asset_resp = requests.get(
+                f"https://images-api.nasa.gov/asset/{nasa_id}", timeout=10
+            )
+            asset_resp.raise_for_status()
+            asset_items = asset_resp.json().get("collection", {}).get("items", [])
+            mp4_url = None
+            for asset in asset_items:
+                href = asset.get("href")
+                if href and href.lower().endswith(".mp4"):
+                    mp4_url = href
+                    break
+            if not mp4_url:
+                continue
+            detail_url = f"https://images.nasa.gov/details-{nasa_id}.html"
+            results.append(
+                {
+                    "title": meta.get("title", "NASA video"),
+                    "id": nasa_id,
+                    "url": detail_url,
+                    "download_url": mp4_url,
+                    "license": "Public Domain (NASA)",
+                    "source": "nasa",
+                    "center": meta.get("center"),
+                }
+            )
+            if len(results) >= max_results:
+                break
+        return results
+    except Exception as e:
+        print(f"  NASA search error: {e}")
+        return []
+
+
+def download_video(result, output_dir):
+    video_url = result.get("download_url") or result.get("url")
+    video_id = result.get("id") or _sanitize_id(video_url)
+    safe_id = _sanitize_id(video_id)
+    out_path = os.path.join(output_dir, f"{safe_id}.mp4")
+    if not os.path.exists(out_path):
+        if video_url and video_url.lower().endswith(".mp4"):
+            try:
+                with requests.get(video_url, stream=True, timeout=30) as resp:
+                    resp.raise_for_status()
+                    with open(out_path, "wb") as f:
+                        for chunk in resp.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+            except Exception as e:
+                print(f"  NASA download error for {video_url}: {e}")
+                return None
+        else:
+            subprocess.run(
+                [
+                    "venv311/bin/yt-dlp",
+                    "-f",
+                    "best[height<=720]",
+                    "-o",
+                    out_path,
+                    video_url,
+                ],
+                check=False,
+            )
     return out_path
 
 
@@ -164,40 +334,84 @@ def main():
     segments = extract_keywords(segments)
 
     for i, seg in enumerate(segments):
-        query = " ".join(seg["keywords"]) or " ".join(seg["text"].split()[:3])
-        print(f"[{i}] Searching: {query}")
-        try:
-            results = search_archive_org(query, SEARCH_RESULTS)
-        except Exception as e:
-            print("  search error:", e)
-            results = []
-        seg["yt_results"] = results
+        query_candidates = generate_queries(seg)
+        print(f"[{i}] Searching: {query_candidates[0]}")
+        seg["queries_tried"] = query_candidates
+        results = []
+        for search_func, label in (
+            (search_archive_org, "Archive.org"),
+            # (search_cspan, "C-SPAN"),
+            (search_nasa, "NASA"),
+        ):
+            source_hits = []
+            last_query = query_candidates[0]
+            try:
+                for attempt, query in enumerate(query_candidates):
+                    last_query = query
+                    source_hits = search_func(query, SEARCH_RESULTS)
+                    if source_hits:
+                        if attempt > 0:
+                            print(
+                                f"  {label} retry #{attempt} succeeded with '{query}'"
+                            )
+                        break
+                    if attempt < len(query_candidates) - 1:
+                        print(
+                            NO_SEARCH_RESULT.format(
+                                search_source=label, keywords=query
+                            )
+                        )
+            except Exception as e:
+                print(f"  {label} search error: {e}")
+                source_hits = []
+            if not source_hits:
+                print(
+                    NO_SEARCH_RESULT.format(
+                        search_source=label, keywords=last_query
+                    )
+                )
+            results.extend(source_hits)
+        seg["video_results"] = results
 
         if not results:
             continue
 
         # pick the first result for prototype
-        vid = results[0]["id"]
-        clip_path = download_video(vid, str(unique_output_dir))
+        chosen = results[0]
+        clip_path = download_video(chosen, str(unique_output_dir))
+        if not clip_path:
+            print("  ⚠️ Skipping clip due to download error.")
+            continue
 
         # New logic: find best segment in downloaded video
-        transcript_path = download_transcript(vid, str(unique_output_dir))
+        transcript_path = None
+        if chosen["source"] in TRANSCRIPT_SOURCES:
+            transcript_path = download_transcript(
+                chosen["id"], chosen.get("download_url") or chosen["url"], str(unique_output_dir)
+            )
         if transcript_path:
             transcript_segments = parse_captions(transcript_path)
             best_seg = find_best_segment(seg["text"], transcript_segments)
             if best_seg:
                 start_time = best_seg["start"]
                 end_time = best_seg["end"]
-                print(f"  ✅ Found best clip at {start_time:.2f}s in {vid}")
+                print(
+                    f"  ✅ Found best clip at {start_time:.2f}s from {chosen['source']}"
+                )
             else:
                 start_time, end_time = seg["start"], seg["end"]
         else:
             # fallback to original timing
             start_time, end_time = seg["start"], seg["end"]
 
-        out_file = trimmed_dir / f"seg_{i}_{vid}.mp4"
+        safe_source_id = _sanitize_id(chosen["id"])
+        out_file = trimmed_dir / f"seg_{i}_{safe_source_id}.mp4"
         trim_clip(clip_path, start_time, end_time, str(out_file))
         seg["clip_file"] = str(out_file)
+        seg["clip_source"] = chosen["source"]
+        seg["clip_source_url"] = chosen["url"]
+        if chosen.get("center"):
+            seg["clip_source_center"] = chosen["center"]
 
     # Save metadata
     with open(unique_output_dir / RESULT_JSON, "w") as f:
