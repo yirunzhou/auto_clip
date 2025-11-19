@@ -61,9 +61,14 @@ def find_best_segment(original_text, transcript_segments):
 def extract_keywords(segments):
     kw_model = KeyBERT()
     for seg in segments:
+        text = seg["text"]
         keywords = kw_model.extract_keywords(
-            seg["text"], keyphrase_ngram_range=(1, 2), stop_words="english"
+            text, keyphrase_ngram_range=(2, 3), stop_words="english"
         )
+        if not keywords:
+            keywords = kw_model.extract_keywords(
+                text, keyphrase_ngram_range=(1, 2), stop_words="english"
+            )
         seg["keywords"] = [k[0] for k in keywords[:3]]
     return segments
 
