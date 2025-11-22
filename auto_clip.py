@@ -1,9 +1,9 @@
+import argparse
 import internetarchive
 import json
 import os
 import subprocess
 from pathlib import Path
-import argparse
 
 import numpy as np
 import pysrt
@@ -12,6 +12,13 @@ import torch
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime
+from qwen_helper import fetch_qwen_keywords
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 # ========== CONFIG ==========
 SRT_DIR = "input"
@@ -19,7 +26,8 @@ OUTPUT_DIR = "output"
 RESULT_JSON = "clips_metadata.json"
 SEARCH_RESULTS = 2  # how many YouTube results per caption
 CLIP_BUFFER = 1.5  # seconds extra for editors
-TRANSCRIPT_SOURCES = {"archive.org", "c-span"}
+TRANSCRIPT_SOURCES = {"archive.org", "c-span", "youtube"}
+DIRECT_DOWNLOAD_EXTS = (".mp4", ".mov", ".m4v")
 # =============================
 
 
@@ -62,14 +70,12 @@ def extract_keywords(segments):
     kw_model = KeyBERT()
     for seg in segments:
         text = seg["text"]
-        keywords = kw_model.extract_keywords(
-            text, keyphrase_ngram_range=(2, 3), stop_words="english"
-        )
+        keywords = fetch_qwen_keywords(text)
         if not keywords:
             keywords = kw_model.extract_keywords(
                 text, keyphrase_ngram_range=(1, 2), stop_words="english"
             )
-        seg["keywords"] = [k[0] for k in keywords[:3]]
+        seg["keywords"] = keywords[:5]
     return segments
 
 
@@ -111,6 +117,15 @@ def _sanitize_id(identifier, fallback="video"):
     identifier = identifier or fallback
     safe = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in identifier)
     return safe or fallback
+
+
+def _compose_video_filename(result, suffix: str) -> str:
+    source = _sanitize_id(result.get("source"), fallback="source")
+    title = _sanitize_id(result.get("title"), fallback="title")
+    identifier = _sanitize_id(result.get("id") or result.get("url"), fallback="video")
+    suffix = (suffix or "mp4").lstrip(".")
+    base = f"{source}_{title}_{identifier}"
+    return f"{base}.{suffix or 'mp4'}"
 
 
 def download_transcript(video_id, video_url, output_dir):
@@ -259,13 +274,59 @@ def search_nasa(query, max_results=3):
         return []
 
 
+def search_youtube(query, max_results=3):
+    """Search YouTube via yt-dlp's built-in search."""
+    try:
+        yt_query = f"ytsearch{max_results}:{query}"
+        proc = subprocess.run(
+            [
+                "venv311/bin/yt-dlp",
+                "--dump-json",
+                "--default-search",
+                "ytsearch",
+                yt_query,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode != 0 and not proc.stdout:
+            print(f"  YouTube search error (code {proc.returncode}) for '{query}'")
+            return []
+        results = []
+        for line in proc.stdout.strip().splitlines():
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if data.get("_type") == "playlist":
+                continue
+            video_id = data.get("id")
+            if not video_id:
+                continue
+            results.append(
+                {
+                    "title": data.get("title", "YouTube video"),
+                    "id": video_id,
+                    "url": f"https://www.youtube.com/watch?v={video_id}",
+                    "license": data.get("license") or "YouTube Terms of Service",
+                    "source": "youtube",
+                    "channel": data.get("uploader"),
+                }
+            )
+        return results
+    except Exception as e:
+        print(f"  YouTube search error: {e}")
+        return []
+
+
 def download_video(result, output_dir):
     video_url = result.get("download_url") or result.get("url")
-    video_id = result.get("id") or _sanitize_id(video_url)
-    safe_id = _sanitize_id(video_id)
-    out_path = os.path.join(output_dir, f"{safe_id}.mp4")
+    is_direct_file = bool(video_url and video_url.lower().endswith(DIRECT_DOWNLOAD_EXTS))
+    suffix = "mp4"
+    out_path = os.path.join(output_dir, _compose_video_filename(result, suffix))
     if not os.path.exists(out_path):
-        if video_url and video_url.lower().endswith(".mp4"):
+        if is_direct_file:
             try:
                 with requests.get(video_url, stream=True, timeout=30) as resp:
                     resp.raise_for_status()
@@ -345,8 +406,9 @@ def main():
         results = []
         for search_func, label in (
             (search_archive_org, "Archive.org"),
-            # (search_cspan, "C-SPAN"),
+            # (search_cspan, "C-SPAN"),  # disabled until API token available
             (search_nasa, "NASA"),
+            (search_youtube, "YouTube"),
         ):
             source_hits = []
             last_query = query_candidates[0]
@@ -417,6 +479,8 @@ def main():
         seg["clip_source_url"] = chosen["url"]
         if chosen.get("center"):
             seg["clip_source_center"] = chosen["center"]
+        if chosen.get("channel"):
+            seg["clip_source_channel"] = chosen["channel"]
 
     # Save metadata
     with open(unique_output_dir / RESULT_JSON, "w") as f:

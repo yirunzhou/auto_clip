@@ -1,0 +1,181 @@
+import json
+import os
+import re
+from typing import Any, List, Optional
+
+import dashscope
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:
+    pass
+
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
+DASHSCOPE_MODEL = os.getenv("DASHSCOPE_MODEL", "qwen-plus")
+DASHSCOPE_ENDPOINT = os.getenv(
+    "DASHSCOPE_ENDPOINT",
+    'https://dashscope-intl.aliyuncs.com/api/v1'
+)
+dashscope.base_http_api_url = DASHSCOPE_ENDPOINT
+
+
+def fetch_qwen_keywords(
+    text: str,
+    max_terms: int = 5,
+    api_key: Optional[str] = None,
+    model_name: Optional[str] = None,
+) -> List[str]:
+    """Call DashScope Qwen to extract geopolitical keywords."""
+
+    text = (text or "").strip()
+    if not text:
+        return []
+    key = api_key or DASHSCOPE_API_KEY
+    if not key:
+        return []
+    model = model_name or DASHSCOPE_MODEL
+    prompt = (
+        "Extract the key geopolitical events in the user's sentence. "
+        "Return a JSON array (max 5 items) of subject-verb-object clauses that name "
+        "the main actor, the action, and the target. Each clause must be concise "
+        "(3-8 words) and formatted for search queries. If the sentence contains a "
+        "time reference, start the clause with it (e.g., 'In 2023, Country X imposes sanctions on Country Y')."
+    )
+    messages = [
+        {'role': 'system', 'content': prompt},
+        {'role': 'user', 'content': text}
+    ]
+    try:
+        response = dashscope.Generation.call(
+            api_key=key,
+            model=model,
+            messages=messages,
+            result_format='text'
+        )
+    except Exception as exc:
+        print(f"  Qwen keyword error: {exc}")
+        return []
+
+    raw_text = _extract_raw_text(response)
+    keywords = parse_keyword_list(raw_text)
+    return keywords[:max_terms]
+
+
+def parse_keyword_list(value: Optional[str]) -> List[str]:
+    if not value:
+        return []
+    value = value.strip()
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    except json.JSONDecodeError:
+        pass
+    parts = re.split(r"[,;\n]+", value)
+    keywords = []
+    for part in parts:
+        cleaned = part.strip(" -\t\"'")
+        if cleaned:
+            keywords.append(cleaned)
+    return keywords
+
+
+def _extract_raw_text(payload: Any) -> str:
+    """Handle DashScope responses regardless of schema (text, dict, or objects)."""
+    if payload is None:
+        return ""
+    if isinstance(payload, str):
+        return payload
+    if isinstance(payload, list):
+        parts = []
+        for item in payload:
+            text_value = _extract_raw_text(item)
+            if text_value:
+                parts.append(text_value)
+        return "".join(parts).strip()
+
+    # Objects returned by dashscope (e.g., GenerationResponse/GenerationOutput)
+    text_value = _safe_getattr(payload, "text")
+    if isinstance(text_value, str):
+        return text_value
+
+    for attr in ("output", "message", "content"):
+        nested = _safe_getattr(payload, attr)
+        text_value = _extract_raw_text(nested)
+        if text_value:
+            return text_value
+
+    choices = _safe_getattr(payload, "choices")
+    if isinstance(choices, list):
+        for choice in choices:
+            text_value = _extract_raw_text(choice)
+            if text_value:
+                return text_value
+
+    if isinstance(payload, dict):
+        if isinstance(payload.get("text"), str):
+            return payload["text"]
+        for key in ("output", "message", "content"):
+            text_value = _extract_raw_text(payload.get(key))
+            if text_value:
+                return text_value
+        choices = payload.get("choices")
+        if isinstance(choices, list):
+            for choice in choices:
+                text_value = _extract_raw_text(choice)
+                if text_value:
+                    return text_value
+    return ""
+
+
+def _safe_getattr(obj: Any, attr: str) -> Any:
+    try:
+        return getattr(obj, attr)
+    except (AttributeError, KeyError):
+        return None
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Test Qwen geopolitical keyword extraction."
+    )
+    parser.add_argument(
+        "text", type=str, nargs="?", help="Sentence to analyze (positional)."
+    )
+    parser.add_argument(
+        "--text",
+        dest="text_option",
+        type=str,
+        help="Sentence to analyze (optional flag alternative).",
+    )
+    parser.add_argument(
+        "--max-terms", type=int, default=5, help="Maximum keywords to return."
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Override DashScope model name (defaults to env).",
+    )
+    parser.add_argument(
+        "--api-key",
+        type=str,
+        default=None,
+        help="Override DashScope API key (defaults to env).",
+    )
+    args = parser.parse_args()
+    text_value = args.text_option or args.text
+    if not text_value:
+        parser.error("Provide the sentence via positional TEXT or --text option.")
+
+    keywords = fetch_qwen_keywords(
+        text_value,
+        max_terms=args.max_terms,
+        api_key=args.api_key,
+        model_name=args.model,
+    )
+    print(json.dumps(keywords, ensure_ascii=False, indent=2))

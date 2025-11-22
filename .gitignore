@@ -2,4 +2,5 @@
 output/
 input/
 venv311/
+.env
 
