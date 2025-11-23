@@ -380,9 +380,15 @@ def main():
     parser.add_argument(
         "srt_file", type=str, help="Path to the source SRT caption file."
     )
+    parser.add_argument(
+        "--download-clips",
+        action="store_true",
+        help="Download and trim clips instead of metadata-only mode (default).",
+    )
     args = parser.parse_args()
 
     SRT_FILE = args.srt_file
+    download_enabled = args.download_clips
 
     # Create a unique output directory based on SRT file name and timestamp
     srt_base_name = Path(SRT_FILE).stem
@@ -399,15 +405,20 @@ def main():
     print("→ Extracting keywords...")
     segments = extract_keywords(segments)
 
+    if download_enabled:
+        print("→ Download mode enabled: clips will be downloaded and trimmed.")
+    else:
+        print("→ Metadata-only mode: skipping clip downloads.")
+
     for i, seg in enumerate(segments):
         query_candidates = generate_queries(seg)
         print(f"[{i}] Searching: {query_candidates[0]}")
         seg["queries_tried"] = query_candidates
         results = []
         for search_func, label in (
-            (search_archive_org, "Archive.org"),
+            # (search_archive_org, "Archive.org"), # low quality videos from testing
             # (search_cspan, "C-SPAN"),  # disabled until API token available
-            (search_nasa, "NASA"),
+            # (search_nasa, "NASA"),
             (search_youtube, "YouTube"),
         ):
             source_hits = []
@@ -445,6 +456,18 @@ def main():
 
         # pick the first result for prototype
         chosen = results[0]
+
+        seg["clip_source"] = chosen["source"]
+        seg["clip_source_url"] = chosen["url"]
+        if chosen.get("center"):
+            seg["clip_source_center"] = chosen["center"]
+        if chosen.get("channel"):
+            seg["clip_source_channel"] = chosen["channel"]
+
+        if not download_enabled:
+            seg["clip_file"] = None
+            continue
+
         clip_path = download_video(chosen, str(unique_output_dir))
         if not clip_path:
             print("  ⚠️ Skipping clip due to download error.")
@@ -475,18 +498,15 @@ def main():
         out_file = trimmed_dir / f"seg_{i}_{safe_source_id}.mp4"
         trim_clip(clip_path, start_time, end_time, str(out_file))
         seg["clip_file"] = str(out_file)
-        seg["clip_source"] = chosen["source"]
-        seg["clip_source_url"] = chosen["url"]
-        if chosen.get("center"):
-            seg["clip_source_center"] = chosen["center"]
-        if chosen.get("channel"):
-            seg["clip_source_channel"] = chosen["channel"]
 
     # Save metadata
     with open(unique_output_dir / RESULT_JSON, "w") as f:
         json.dump(segments, f, indent=2)
 
-    print(f"\n✅ Done. Clips saved under {unique_output_dir}/trimmed/")
+    if download_enabled:
+        print(f"\n✅ Done. Clips saved under {unique_output_dir}/trimmed/")
+    else:
+        print("\n✅ Done. Metadata collected without downloading clips.")
     print(f"Metadata: {unique_output_dir}/{RESULT_JSON}")
 
 
