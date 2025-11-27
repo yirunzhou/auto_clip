@@ -3,4 +3,6 @@ output/
 input/
 venv311/
 .env
+*.pyc
+__pycache__/
 
