@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+
+{% block title %}Manual YouTube clips · auto_clip{% endblock %}
+
+{% block extra_styles %}
+  textarea { width: 100%; min-height: 120px; }
+  .video-entry { background: #fff; }
+{% endblock %}
+
+{% block content %}
+  <p>Paste one YouTube link per line. The app fetches basic metadata, creates <code>output/links_&lt;timestamp&gt;/clips_metadata.json</code>, and lets editors download or trim clips.</p>
+  <form method="post" data-loading-target="links-status" data-loading-text="Fetching video info..." data-loading-label="Processing...">
+    <label for="links">YouTube links:</label>
+    <textarea id="links" name="links" placeholder="https://www.youtube.com/watch?v=...">{{ raw_links }}</textarea>
+    <button type="submit">Load videos</button>
+  </form>
+  <div id="links-status" class="status"></div>
+
+  {% if videos %}
+    <h2>Videos</h2>
+    {% if videos|length > 1 and metadata_path and output_dir %}
+      <form class="download-all-form js-overlay js-links-bulk" method="post" action="{{ url_for('download_all_links') }}" data-loading-target="links-status" data-loading-text="Downloading all videos..." data-loading-label="Downloading..." data-overlay-text="Downloading all clips...">
+        <input type="hidden" name="metadata_path" value="{{ metadata_path }}" />
+        <input type="hidden" name="output_dir" value="{{ output_dir }}" />
+        <button type="submit">Download all videos</button>
+      </form>
+    {% endif %}
+    {% if metadata_path %}
+      <p><strong>Metadata JSON:</strong> {{ metadata_path }}</p>
+    {% endif %}
+    {% for video in videos %}
+      <div class="video-entry" data-video-index="{{ loop.index0 }}">
+        <p><strong>{{ video.title or video.id }}</strong></p>
+        <p>
+          <a href="{{ video.url }}" target="_blank" rel="noopener">Open on YouTube</a>
+          {% if video.channel %}- {{ video.channel }}{% endif %}
+        </p>
+        {% if metadata_path and output_dir %}
+          <form class="download-form js-overlay" method="post" action="{{ url_for('download_clip') }}" data-overlay-text="Downloading clip...">
+            <input type="hidden" name="metadata_path" value="{{ metadata_path }}" />
+            <input type="hidden" name="output_dir" value="{{ output_dir }}" />
+            <input type="hidden" name="video_id" value="{{ video.id }}" />
+            <input type="hidden" name="video_title" value="{{ video.title }}" />
+            <input type="hidden" name="video_url" value="{{ video.url }}" />
+            <input type="hidden" name="video_source" value="{{ video.source }}" />
+            <input type="hidden" name="video_channel" value="{{ video.channel }}" />
+            <input type="hidden" name="page" value="links" />
+            <label>Start (s): <input type="number" name="start_time" step="0.1" min="0" /></label>
+            <label>End (s): <input type="number" name="end_time" step="0.1" min="0" /></label>
+            <button type="submit">Download clip</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% elif videos is not none %}
+    <p>No valid videos detected.</p>
+  {% endif %}
+{% endblock %}

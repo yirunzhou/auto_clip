@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+
+{% block title %}Transcript workflow · auto_clip{% endblock %}
+
+{% block content %}
+  <p>Upload an <code>.srt</code> file to run the keyword → YouTube search pipeline. The app saves results under <code>output/&lt;transcript&gt;_&lt;timestamp&gt;/</code>.</p>
+  <form method="post" enctype="multipart/form-data" data-loading-target="upload-status" data-loading-text="Processing transcript..." data-loading-label="Processing...">
+    <label for="srt_file">Select SRT file:</label>
+    <input type="file" id="srt_file" name="srt_file" accept=".srt" required />
+    <button type="submit">Search</button>
+  </form>
+  <div id="upload-status" class="status"></div>
+
+  {% if segments %}
+    <h2>Results</h2>
+    {% if metadata_path %}
+      <p><strong>Metadata JSON:</strong> {{ metadata_path }}</p>
+    {% endif %}
+    {% for seg in segments %}
+      {% if seg.video_results %}
+        <div class="segment">
+          <h3>Segment {{ loop.index }}</h3>
+          <p><strong>Time:</strong> {{ "%.2f"|format(seg.start) }}s → {{ "%.2f"|format(seg.end) }}s</p>
+          <p>{{ seg.text }}</p>
+          <p><strong>Queries tried:</strong> {{ seg.queries_tried|join(', ') }}</p>
+          <ul>
+            {% for video in seg.video_results %}
+              <li>
+                <a href="{{ video.url }}" target="_blank" rel="noopener">{{ video.title or video.id }}</a>
+                {% if video.channel %}- {{ video.channel }}{% endif %}
+                {% if metadata_path and output_dir %}
+                  <form class="download-form js-overlay" method="post" action="{{ url_for('download_clip') }}" data-overlay-text="Downloading clip...">
+                    <input type="hidden" name="metadata_path" value="{{ metadata_path }}" />
+                    <input type="hidden" name="output_dir" value="{{ output_dir }}" />
+                    <input type="hidden" name="video_id" value="{{ video.id }}" />
+                    <input type="hidden" name="video_title" value="{{ video.title }}" />
+                    <input type="hidden" name="video_url" value="{{ video.url }}" />
+                    <input type="hidden" name="video_source" value="{{ video.source }}" />
+                    <input type="hidden" name="video_channel" value="{{ video.channel }}" />
+                    <input type="hidden" name="page" value="srt" />
+                    <label>Start (s): <input type="number" name="start_time" step="0.1" min="0" /></label>
+                    <label>End (s): <input type="number" name="end_time" step="0.1" min="0" /></label>
+                    <button type="submit">Download clip</button>
+                  </form>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% elif segments is not none %}
+    <p>No YouTube results found for this transcript.</p>
+  {% endif %}
+
+  <p>Need to clip specific YouTube links instead? <a href="{{ url_for('youtube_links') }}">Use the manual workflow.</a></p>
+{% endblock %}

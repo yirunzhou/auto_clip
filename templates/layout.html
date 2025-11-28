@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{% block title %}auto_clip{% endblock %}</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 2rem; max-width: 960px; }
+      header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+      nav a { margin-right: 1rem; color: #0366d6; text-decoration: none; }
+      nav a:last-child { margin-right: 0; }
+      nav a.active { font-weight: 600; }
+      form { margin-bottom: 1.25rem; }
+      .segment, .video-entry { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; background: #fff; }
+      .segment h3 { margin: 0 0 0.5rem 0; }
+      .error { color: #b00020; margin-bottom: 1rem; }
+      .notice { margin: 1rem 0; padding: 0.5rem 0.75rem; background: #eef6ff; border: 1px solid #b5d3ff; border-radius: 4px; }
+      .status { margin-top: 0.5rem; color: #555; min-height: 1.2rem; }
+      form.download-form label, form.bulk-form label { margin-right: 0.5rem; }
+      #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 1000; }
+      #overlay .overlay-content { background: #fff; padding: 1.5rem 2rem; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.2); font-size: 1.1rem; }
+      {% block extra_styles %}{% endblock %}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>auto_clip</h1>
+      <nav>
+        <a href="{{ url_for('index') }}" class="{% if request.path == '/' %}active{% endif %}">Transcript workflow</a>
+        <a href="{{ url_for('youtube_links') }}" class="{% if request.path.startswith('/youtube-links') %}active{% endif %}">Manual YouTube clips</a>
+      </nav>
+    </header>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    {% if status_message %}
+      <div class="notice">{{ status_message }}</div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+
+    <div id="overlay"><div class="overlay-content">Working... Please wait.</div></div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var overlay = document.getElementById('overlay');
+
+        function showOverlay(form) {
+          if (!overlay) { return; }
+          var message = form && form.getAttribute('data-overlay-text') ? form.getAttribute('data-overlay-text') : 'Working...';
+          overlay.querySelector('.overlay-content').textContent = message;
+          overlay.style.display = 'flex';
+        }
+
+        document.querySelectorAll('form[data-loading-target]').forEach(function (form) {
+          form.addEventListener('submit', function () {
+            var btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+              btn.disabled = true;
+              var label = form.getAttribute('data-loading-label') || 'Processing...';
+              btn.dataset.originalText = btn.textContent;
+              btn.textContent = label;
+            }
+            var targetId = form.getAttribute('data-loading-target');
+            if (targetId) {
+              var el = document.getElementById(targetId);
+              if (el) {
+                el.textContent = form.getAttribute('data-loading-text') || 'Working...';
+              }
+            }
+            if (form.classList.contains('js-overlay')) {
+              showOverlay(form);
+            }
+          }, { once: true });
+        });
+
+        document.querySelectorAll('form.js-overlay').forEach(function (form) {
+          form.addEventListener('submit', function () {
+            showOverlay(form);
+          }, { once: true });
+        });
+
+        document.querySelectorAll('form.js-links-bulk').forEach(function (form) {
+          form.addEventListener('submit', function () {
+            form.querySelectorAll('input[name^="start_time_"], input[name^="end_time_"]').forEach(function (input) {
+              input.remove();
+            });
+            document.querySelectorAll('.video-entry').forEach(function (entry) {
+              var idx = entry.getAttribute('data-video-index');
+              if (typeof idx === 'undefined') {
+                return;
+              }
+              var startInput = entry.querySelector('input[name="start_time"]');
+              var endInput = entry.querySelector('input[name="end_time"]');
+              if (startInput && startInput.value) {
+                var hiddenStart = document.createElement('input');
+                hiddenStart.type = 'hidden';
+                hiddenStart.name = 'start_time_' + idx;
+                hiddenStart.value = startInput.value;
+                form.appendChild(hiddenStart);
+              }
+              if (endInput && endInput.value) {
+                var hiddenEnd = document.createElement('input');
+                hiddenEnd.type = 'hidden';
+                hiddenEnd.name = 'end_time_' + idx;
+                hiddenEnd.value = endInput.value;
+                form.appendChild(hiddenEnd);
+              }
+            });
+            showOverlay(form);
+          }, { once: true });
+        });
+      });
+    </script>
+    {% block extra_scripts %}{% endblock %}
+  </body>
+</html>

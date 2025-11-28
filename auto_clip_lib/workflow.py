@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
@@ -76,6 +77,77 @@ def run_keyword_search_workflow(
         "query": raw_query,
         "results": results,
         "search_source": "YouTube",
+        "generated_at": timestamp,
+    }
+
+    metadata_path = output_dir / RESULT_JSON
+    with metadata_path.open("w") as f:
+        json.dump(metadata, f, indent=2)
+
+    return metadata, output_dir, metadata_path
+
+
+def _fetch_youtube_details(url: str) -> dict | None:
+    try:
+        proc = subprocess.run(
+            ["venv311/bin/yt-dlp", "--dump-single-json", "--skip-download", url],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return None
+        data = json.loads(proc.stdout)
+        if data.get("_type") == "playlist":
+            entries = data.get("entries") or []
+            data = entries[0] if entries else data
+        video_id = data.get("id")
+        title = data.get("title") or "YouTube video"
+        uploader = data.get("uploader")
+        webpage_url = data.get("webpage_url") or url
+        return {
+            "id": video_id,
+            "title": title,
+            "channel": uploader,
+            "url": webpage_url,
+            "source": "youtube",
+            "duration": data.get("duration"),
+            "thumbnail": data.get("thumbnail"),
+        }
+    except Exception:
+        return None
+
+
+def run_youtube_links_workflow(
+    links: Iterable[str],
+    *,
+    log_func: LogFn | None = print,
+    output_prefix: str | None = None,
+):
+    cleaned = [link.strip() for link in links if link and link.strip()]
+    if not cleaned:
+        raise ValueError("Please provide at least one YouTube link.")
+
+    details = []
+    for url in cleaned:
+        info = _fetch_youtube_details(url)
+        if not info:
+            if log_func:
+                log_func(f"Failed to fetch metadata for {url}")
+            continue
+        details.append(info)
+
+    if not details:
+        raise ValueError("Could not retrieve metadata for the provided links.")
+
+    safe_prefix = sanitize_id(output_prefix or "links", fallback="links")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = Path(OUTPUT_DIR) / f"{safe_prefix}_{timestamp}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    metadata = {
+        "source": "manual_links",
+        "videos": details,
         "generated_at": timestamp,
     }
 
