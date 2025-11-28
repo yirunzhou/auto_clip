@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import logging
 from pathlib import Path
 from typing import Any, Tuple
 
@@ -17,6 +18,22 @@ from auto_clip_lib.workflow import run_metadata_workflow, run_youtube_links_work
 
 app = Flask(__name__)
 OUTPUT_BASE = Path(OUTPUT_DIR).resolve()
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(exist_ok=True)
+LOG_FILE = LOG_DIR / "web_app.log"
+
+LOG_FILE_HANDLER = logging.FileHandler(LOG_FILE, encoding="utf-8")
+LOG_FILE_HANDLER.setLevel(logging.INFO)
+LOG_FILE_HANDLER.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+)
+
+logging.basicConfig(level=logging.INFO, handlers=[LOG_FILE_HANDLER])
+LOGGER = logging.getLogger(__name__)
+
+
+def _log_exception(message: str, **context: Any) -> None:
+    LOGGER.exception("%s | context=%s", message, context)
 
 
 def _ensure_output_path(path_str: str) -> Path:
@@ -118,11 +135,21 @@ def index():
                 )
                 metadata_path = str(metadata_file)
                 output_dir = str(output_dir_path)
+                LOGGER.info(
+                    "Processed SRT upload '%s' → %s",
+                    upload.filename,
+                    metadata_path,
+                )
             except Exception as exc:  # pragma: no cover - runtime diagnostics
                 error = f"Failed to process file: {exc}"
                 segments = None
                 metadata_path = None
                 output_dir = None
+                _log_exception(
+                    "SRT processing failed",
+                    filename=upload.filename,
+                    exc=str(exc),
+                )
             finally:
                 if "temp_file" in locals():
                     temp_file.unlink(missing_ok=True)
@@ -163,8 +190,18 @@ def youtube_links():
                 metadata_path = str(metadata_file)
                 output_dir = str(out_dir)
                 status_message = f"Loaded {len(videos)} video(s)."
+                LOGGER.info(
+                    "Loaded %d manual links into %s",
+                    len(videos),
+                    metadata_path,
+                )
             except Exception as exc:  # pragma: no cover - runtime diagnostics
                 error = f"Failed to load links: {exc}"
+                _log_exception(
+                    "Manual link ingestion failed",
+                    link_count=len(candidates),
+                    exc=str(exc),
+                )
 
     return render_template(
         "youtube_links.html",
@@ -225,10 +262,20 @@ def download_clip():
             if trimmed
             else f"Full video saved to {saved_path}"
         )
+        LOGGER.info(
+            "Downloaded %s (%s); trimmed=%s", video_title or video_id, saved_path, trimmed
+        )
 
     except Exception as exc:  # pragma: no cover - runtime diagnostics
         error = f"Failed to download clip: {exc}"
         metadata_obj = None
+        _log_exception(
+            "Download clip failed",
+            video_id=video_id,
+            video_title=video_title,
+            video_url=video_url,
+            exc=str(exc),
+        )
 
     if metadata_obj is None and metadata_path:
         try:
@@ -316,9 +363,21 @@ def download_all_links():
         if issues:
             error = f"Issues detected: {', '.join(issues)}"
         status_message = f"Downloaded {successes} video(s)."
+        LOGGER.info(
+            "Bulk download complete: %d success(es), %d issue(s) → %s",
+            successes,
+            len(issues),
+            metadata_path,
+        )
 
     except Exception as exc:  # pragma: no cover - runtime diagnostics
         error = f"Failed to download all videos: {exc}"
+        _log_exception(
+            "Bulk download failed",
+            metadata_path=metadata_path,
+            output_dir=output_dir,
+            exc=str(exc),
+        )
 
     if videos is None and metadata_path:
         try:
