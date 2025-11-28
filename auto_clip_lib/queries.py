@@ -4,9 +4,6 @@
 def generate_queries(segment: dict, max_attempts: int = 3) -> list[str]:
     queries = []
     keywords = [kw for kw in segment.get("keywords", []) if kw]
-    joined = " ".join(keywords).strip()
-    if joined:
-        queries.append(joined)
     if keywords:
         queries.extend(keywords)
     text = segment.get("text", "").strip()

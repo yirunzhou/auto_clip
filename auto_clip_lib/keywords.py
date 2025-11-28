@@ -1,9 +1,10 @@
 """Keyword extraction helpers."""
 
+from typing import Iterable, List
+
 from keybert import KeyBERT
 
 from qwen_helper import fetch_qwen_keywords
-
 
 _kw_model: KeyBERT | None = None
 
@@ -16,6 +17,11 @@ def _get_model() -> KeyBERT:
 
 
 def extract_keywords(segments: list[dict]) -> list[dict]:
+    """Attach keyword lists to each multi-sentence segment."""
+
+    if not segments:
+        return []
+
     kw_model = _get_model()
     for seg in segments:
         text = seg["text"]
@@ -24,5 +30,20 @@ def extract_keywords(segments: list[dict]) -> list[dict]:
             keywords = kw_model.extract_keywords(
                 text, keyphrase_ngram_range=(1, 2), stop_words="english"
             )
-        seg["keywords"] = keywords[:5]
+        seg["keywords"] = _normalize_keywords(keywords)[:5]
     return segments
+
+
+def _normalize_keywords(candidates: Iterable) -> List[str]:
+    normalized: List[str] = []
+    for candidate in candidates:
+        if isinstance(candidate, (list, tuple)):
+            if not candidate:
+                continue
+            value = candidate[0]
+        else:
+            value = candidate
+        text = str(value).strip()
+        if text:
+            normalized.append(text)
+    return normalized

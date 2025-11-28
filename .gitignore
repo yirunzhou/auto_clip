@@ -1,4 +1,5 @@
 .DS_STORE
+auto_clip_lib/__pycache__/
 output/
 input/
 venv311/

@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from auto_clip_lib.captions import find_best_segment, parse_captions
+from auto_clip_lib.chunking import chunk_segments
 from auto_clip_lib.config import (
     NO_SEARCH_RESULT,
     OUTPUT_DIR,
@@ -52,6 +53,9 @@ def main():
 
     print(f"→ Parsing captions from {srt_file.name}...")
     segments = parse_captions(str(srt_file))
+
+    segments = chunk_segments(segments)
+    print(f"→ Regrouped into {len(segments)} multi-sentence segments for search.")
 
     print("→ Extracting keywords...")
     segments = extract_keywords(segments)
@@ -108,55 +112,56 @@ def main():
         if not results:
             continue
 
-        chosen = results[0]
-
-        seg["clip_source"] = chosen["source"]
-        seg["clip_source_url"] = chosen["url"]
-        if chosen.get("center"):
-            seg["clip_source_center"] = chosen["center"]
-        if chosen.get("channel"):
-            seg["clip_source_channel"] = chosen["channel"]
-
-        if not download_enabled:
-            seg["clip_file"] = None
-            continue
-
-        clip_path = download_video(chosen, str(unique_output_dir))
-        if not clip_path:
-            print("  ⚠️ Skipping clip due to download error.")
-            continue
-
-        transcript_path = None
-        if chosen["source"] in TRANSCRIPT_SOURCES:
-            transcript_path = download_transcript(
-                chosen["id"],
-                chosen.get("download_url") or chosen["url"],
-                str(unique_output_dir),
-            )
-        if transcript_path:
-            transcript_segments = parse_captions(transcript_path)
-            best_seg = find_best_segment(seg["text"], transcript_segments)
-            if best_seg:
-                start_time = best_seg["start"]
-                end_time = best_seg["end"]
-                print(
-                    f"  ✅ Found best clip at {start_time:.2f}s from {chosen['source']}"
-                )
-            else:
-                start_time, end_time = seg["start"], seg["end"]
-        else:
-            start_time, end_time = seg["start"], seg["end"]
-
-        safe_source_id = sanitize_id(chosen["id"])
-        out_file = trimmed_dir / f"seg_{i}_{safe_source_id}.mp4"
-        trim_clip(clip_path, start_time, end_time, str(out_file))
-        seg["clip_file"] = str(out_file)
+        #        chosen = results[0]
+        #
+        #        seg["clip_source"] = chosen["source"]
+        #        seg["clip_source_url"] = chosen["url"]
+        #        if chosen.get("center"):
+        #            seg["clip_source_center"] = chosen["center"]
+        #        if chosen.get("channel"):
+        #            seg["clip_source_channel"] = chosen["channel"]
+        #
+        #        if not download_enabled:
+        #            seg["clip_file"] = None
+        #            continue
+        #
+        #        clip_path = download_video(chosen, str(unique_output_dir))
+        #        if not clip_path:
+        #            print("  ⚠️ Skipping clip due to download error.")
+        #            continue
+        #
+        #        transcript_path = None
+        #        if chosen["source"] in TRANSCRIPT_SOURCES:
+        #            transcript_path = download_transcript(
+        #                chosen["id"],
+        #                chosen.get("download_url") or chosen["url"],
+        #                str(unique_output_dir),
+        #            )
+        #        if transcript_path:
+        #            transcript_segments = parse_captions(transcript_path)
+        #            best_seg = find_best_segment(seg["text"], transcript_segments)
+        #            if best_seg:
+        #                start_time = best_seg["start"]
+        #                end_time = best_seg["end"]
+        #                print(
+        #                    f"  ✅ Found best clip at {start_time:.2f}s from {chosen['source']}"
+        #                )
+        #            else:
+        #                start_time, end_time = seg["start"], seg["end"]
+        #        else:
+        #            start_time, end_time = seg["start"], seg["end"]
+        #
+        #        safe_source_id = sanitize_id(chosen["id"])
+        #        out_file = trimmed_dir / f"seg_{i}_{safe_source_id}.mp4"
+        #        trim_clip(clip_path, start_time, end_time, str(out_file))
+        #        seg["clip_file"] = str(out_file)
 
     with open(unique_output_dir / RESULT_JSON, "w") as f:
         json.dump(segments, f, indent=2)
 
     if download_enabled:
-        print(f"\n✅ Done. Clips saved under {unique_output_dir}/trimmed/")
+        # print(f"\n✅ Done. Clips saved under {unique_output_dir}/trimmed/")
+        print("Download not supported yet")
     else:
         print("\n✅ Done. Metadata collected without downloading clips.")
     print(f"Metadata: {unique_output_dir}/{RESULT_JSON}")
