@@ -6,12 +6,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from flask import Flask, render_template_string, request, url_for
+from flask import Flask, render_template_string, request
 
-from auto_clip_lib.workflow import (
-    run_keyword_search_workflow,
-    run_metadata_workflow,
-)
+from auto_clip_lib.workflow import run_metadata_workflow
 
 
 app = Flask(__name__)
@@ -30,24 +27,21 @@ INDEX_TEMPLATE = """
       .segment h3 { margin: 0 0 0.5rem 0; }
       .error { color: #b00020; margin-bottom: 1rem; }
       ul { padding-left: 1.2rem; }
-      nav a { margin-right: 1rem; }
-    </style>
+      .status { margin-top: 1rem; color: #555; }
+  </style>
   </head>
   <body>
     <h1>auto_clip: Metadata Search</h1>
-    <nav>
-      <a href="{{ url_for('index') }}">Upload SRT</a>
-      <a href="{{ url_for('manual_search') }}">Manual search</a>
-    </nav>
     <p>Upload an .srt file to run the keyword + YouTube search pipeline and review the results.</p>
     {% if error %}
       <div class="error">{{ error }}</div>
     {% endif %}
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" data-loading-target="upload-status" data-loading-text="Processing transcript..." data-loading-label="Processing...">
       <label for="srt_file">Select SRT file:</label>
       <input type="file" id="srt_file" name="srt_file" accept=".srt" required />
       <button type="submit">Search</button>
     </form>
+    <div id="upload-status" class="status"></div>
 
     {% if segments %}
       <h2>Results</h2>
@@ -75,59 +69,28 @@ INDEX_TEMPLATE = """
     {% elif segments is not none %}
       <p>No YouTube results found for this transcript.</p>
     {% endif %}
-  </body>
-</html>
-"""
-
-
-SEARCH_TEMPLATE = """
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>auto_clip manual search</title>
-    <style>
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 2rem; }
-      form { margin-bottom: 2rem; }
-      .segment { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; }
-      .error { color: #b00020; margin-bottom: 1rem; }
-      nav a { margin-right: 1rem; }
-      ul { padding-left: 1.2rem; }
-    </style>
-  </head>
-  <body>
-    <h1>Manual YouTube Search</h1>
-    <nav>
-      <a href="{{ url_for('index') }}">Upload SRT</a>
-      <a href="{{ url_for('manual_search') }}">Manual search</a>
-    </nav>
-    {% if error %}
-      <div class="error">{{ error }}</div>
-    {% endif %}
-    <form method="post">
-      <label for="keywords">Search keywords:</label>
-      <input type="text" id="keywords" name="keywords" value="{{ query }}" placeholder="e.g. USAID Nicaragua" required />
-      <button type="submit">Search YouTube</button>
-    </form>
-
-    {% if metadata %}
-      <h2>Results for "{{ metadata.query }}"</h2>
-      {% if metadata_path %}
-        <p><strong>Metadata JSON:</strong> {{ metadata_path }}</p>
-      {% endif %}
-      {% if metadata.results %}
-        <ul>
-          {% for video in metadata.results %}
-            <li>
-              <a href="{{ video.url }}" target="_blank" rel="noopener">{{ video.title or video.id }}</a>
-              {% if video.channel %}- {{ video.channel }}{% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No videos returned for this query.</p>
-      {% endif %}
-    {% endif %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('form[data-loading-target]').forEach(function (form) {
+          form.addEventListener('submit', function () {
+            var btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+              btn.disabled = true;
+              var label = form.getAttribute('data-loading-label') || 'Processing...';
+              btn.dataset.originalText = btn.textContent;
+              btn.textContent = label;
+            }
+            var targetId = form.getAttribute('data-loading-target');
+            if (targetId) {
+              var el = document.getElementById(targetId);
+              if (el) {
+                el.textContent = form.getAttribute('data-loading-text') || 'Working...';
+              }
+            }
+          }, { once: true });
+        });
+      });
+    </script>
   </body>
 </html>
 """
@@ -174,37 +137,6 @@ def index():
 
     return render_template_string(
         INDEX_TEMPLATE, error=error, segments=segments, metadata_path=metadata_path
-    )
-
-
-@app.route("/manual-search", methods=["GET", "POST"])
-def manual_search():
-    error = None
-    metadata = None
-    metadata_path = None
-    query = ""
-
-    if request.method == "POST":
-        query = request.form.get("keywords", "").strip()
-        if not query:
-            error = "Please enter keywords for the search."
-        else:
-            try:
-                metadata, _, metadata_file = run_keyword_search_workflow(
-                    query, log_func=None, output_prefix=query
-                )
-                metadata_path = str(metadata_file)
-            except ValueError as exc:
-                error = str(exc)
-            except Exception as exc:  # pragma: no cover - runtime diagnostics
-                error = f"Failed to process search: {exc}"
-
-    return render_template_string(
-        SEARCH_TEMPLATE,
-        error=error,
-        metadata=metadata,
-        metadata_path=metadata_path,
-        query=query,
     )
 
 
