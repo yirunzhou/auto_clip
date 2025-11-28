@@ -1,0 +1,11 @@
+flask
+requests
+pysrt
+torch
+sentence-transformers
+keybert
+dashscope
+yt-dlp
+ffmpeg
+python-dotenv
+internetarchive
