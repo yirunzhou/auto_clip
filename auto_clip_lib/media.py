@@ -1,7 +1,6 @@
 """Helpers for downloading and trimming media."""
 
 import os
-import shutil
 import subprocess
 
 import requests
@@ -9,9 +8,7 @@ import requests
 from auto_clip_lib.config import CLIP_BUFFER, DIRECT_DOWNLOAD_EXTS
 from auto_clip_lib.utils import compose_video_filename, sanitize_id
 
-
-def _ytdlp_cmd() -> str:
-    return os.environ.get("YT_DLP_PATH") or shutil.which("yt-dlp") or "yt-dlp"
+from auto_clip_lib.utils import ytdlp_cmd
 
 
 def download_transcript(video_id: str, video_url: str, output_dir: str) -> str | None:
@@ -20,7 +17,7 @@ def download_transcript(video_id: str, video_url: str, output_dir: str) -> str |
     if not os.path.exists(out_path):
         subprocess.run(
             [
-                _ytdlp_cmd(),
+                ytdlp_cmd(),
                 "--write-auto-sub",
                 "--sub-lang",
                 "en",

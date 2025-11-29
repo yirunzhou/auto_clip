@@ -1,6 +1,12 @@
 """Utility helpers used across modules."""
 
 from typing import Any, Dict
+import os
+import shutil
+
+
+def ytdlp_cmd() -> str:
+    return os.environ.get("YT_DLP_PATH") or shutil.which("yt-dlp") or "yt-dlp"
 
 
 def sanitize_id(identifier: str | None, fallback: str = "video") -> str:

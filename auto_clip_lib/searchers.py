@@ -7,6 +7,7 @@ import internetarchive
 import requests
 
 from auto_clip_lib.utils import sanitize_id
+from auto_clip_lib.utils import ytdlp_cmd
 
 
 def search_archive_org(query: str, max_results: int = 3) -> list[dict]:
@@ -126,7 +127,7 @@ def search_youtube(query: str, max_results: int = 3) -> list[dict]:
         yt_query = f"ytsearch{max_results}:{query}"
         proc = subprocess.run(
             [
-                "venv311/bin/yt-dlp",
+                ytdlp_cmd(),
                 "--dump-json",
                 "--default-search",
                 "ytsearch",
