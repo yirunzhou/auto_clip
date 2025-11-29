@@ -135,6 +135,15 @@ def index():
                 )
                 metadata_path = str(metadata_file)
                 output_dir = str(output_dir_path)
+                if any(
+                    (seg.get("_keyword_source") == "keybert")
+                    for seg in segments or []
+                ):
+                    status_message = (
+                        "Warning: LLM keyword search failed; using local KeyBERT. "
+                        "Set DASHSCOPE_API_KEY in your .env (see .env.example) if you "
+                        "expect LLM keywords."
+                    )
                 LOGGER.info(
                     "Processed SRT upload '%s' → %s",
                     upload.filename,
