@@ -1,62 +1,54 @@
-# auto_clip
+# auto_clip quickstart
 
-Browser-based and CLI tooling that ingests long-form SRT transcripts and searches for related YouTube footage for editors.
+auto_clip helps you turn long transcripts into curated YouTube references. Upload an `.srt`, skim the suggested clips, and (optionally) download or trim them straight from the browser.
 
-## Prerequisites
+## What you need
 
-- Python 3.11 or newer.
-- `ffmpeg` in your `PATH` for any future media processing (not required if you only gather metadata).
-- `yt-dlp` installed via pip (included in `requirements.txt` once you install deps).
-- (Optional) API tokens such as DashScope/Qwen for advanced keyword extraction.
+- Python 3.11+.
+- `ffmpeg` on your machine if you plan to trim clips.
+- `yt-dlp` (installed automatically with our requirements). Set `YT_DLP_PATH` if you use a custom binary.
+- Optional: DashScope/Qwen API keys for smarter keyword extraction.
 
-## Installation
+## One-time setup
 
-1. **Create and activate a virtual environment** (recommended to keep dependencies isolated):
-
+1. **Clone & create a virtual environment**
    ```bash
    python -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    ```
 
-2. **Install dependencies**. If you use `pip-tools`, compile the lockfile once:
-
-   ```bash
-   pip install pip-tools
-   pip-compile requirements.in  # only needed when deps change
-   ```
-
-   Then install the pinned requirements:
-
+2. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
+   (If you maintain deps with `pip-tools`, edit `requirements.in` and run `pip-compile` before installing.)
 
-If you prefer not to use `pip-tools`, maintain `requirements.txt` manually with the top-level packages and run only the last command.
-
-## Running the CLI
-
-Generate metadata (and optionally clips) for an SRT file:
+## Start the web app
 
 ```bash
-python auto_clip.py path/to/video.srt  # metadata only
+python web_app.py            # default production-style server
+# or, if you need hot reload while developing:
+flask --app web_app.py --debug run
 ```
 
-Output lives under `output/<srt-name>_<timestamp>/clips_metadata.json`.
+Then browse to `http://127.0.0.1:5000`:
+- **Transcript workflow**: upload an `.srt` and review the suggested segments + YouTube hits.
+- **Manual workflow**: paste a list of YouTube links and download or trim them with custom timecodes.
 
-## Running the Web App
+Every request is logged to `logs/web_app.log`, making it easy to share stack traces when editors report issues.
 
-Launch the Flask UI for both transcript and manual-link workflows:
+## Prefer the CLI?
+
+Run the metadata pipeline directly:
 
 ```bash
-FLASK_APP=web_app.py FLASK_ENV=production FLASK_DEBUG=0 flask run
-# or simply
-python web_app.py
+python auto_clip.py path/to/video.srt
 ```
 
-Navigate to `http://127.0.0.1:5000` and upload an `.srt` for metadata or paste YouTube links for manual downloads.
+Results are saved under `output/<srt-name>_<timestamp>/clips_metadata.json`.
 
-## Notes
+## Tips
 
-- Ensure `ffmpeg` is installed (`brew install ffmpeg`, `choco install ffmpeg`, or grab it from https://ffmpeg.org/).
-- The app shells out to `yt-dlp` via `venv311/bin/yt-dlp`; update the path if you run outside this repo’s layout.
-- For reproducible installs on CI or other hosts, commit both `requirements.in` and the compiled `requirements.txt`.
+- Install `ffmpeg` via Homebrew (`brew install ffmpeg`), Chocolatey (`choco install ffmpeg`), or grab binaries from https://ffmpeg.org/.
+- `yt-dlp` defaults to your PATH or `YT_DLP_PATH`; no need to hardcode the repo’s `venv` path.
+- Keep both `requirements.in` (top-level deps) and the compiled `requirements.txt` in version control for reproducible installs.
