@@ -9,3 +9,4 @@ yt-dlp
 ffmpeg
 python-dotenv
 internetarchive
+numpy<2
