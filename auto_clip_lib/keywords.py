@@ -22,7 +22,6 @@ def extract_keywords(segments: list[dict]) -> list[dict]:
     if not segments:
         return []
 
-    kw_model = _get_model()
     for seg in segments:
         text = seg["text"]
         try:
