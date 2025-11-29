@@ -30,11 +30,7 @@ def fetch_qwen_keywords(
     """Call DashScope Qwen to extract geopolitical keywords."""
 
     text = (text or "").strip()
-    if not text:
-        return []
     key = api_key or DASHSCOPE_API_KEY
-    if not key:
-        return []
     model = model_name or DASHSCOPE_MODEL
     prompt = (
         "Extract the key geopolitical events in the user's sentence. "
@@ -55,8 +51,7 @@ def fetch_qwen_keywords(
             result_format='text'
         )
     except Exception as exc:
-        print(f"  Qwen keyword error: {exc}")
-        return []
+        raise exc
 
     raw_text = _extract_raw_text(response)
     keywords = parse_keyword_list(raw_text)

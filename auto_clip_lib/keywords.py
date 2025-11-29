@@ -25,11 +25,10 @@ def extract_keywords(segments: list[dict]) -> list[dict]:
     kw_model = _get_model()
     for seg in segments:
         text = seg["text"]
-        keywords = fetch_qwen_keywords(text)
-        if not keywords:
-            keywords = kw_model.extract_keywords(
-                text, keyphrase_ngram_range=(1, 2), stop_words="english"
-            )
+        try:
+            keywords = fetch_qwen_keywords(text)
+        except Exception as exce:
+            raise exce
         seg["keywords"] = _normalize_keywords(keywords)[:5]
     return segments
 
