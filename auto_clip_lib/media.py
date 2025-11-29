@@ -55,7 +55,7 @@ def download_video(result: dict, output_dir: str) -> str | None:
         else:
             proc = subprocess.run(
                 [
-                    _ytdlp_cmd(),
+                    ytdlp_cmd(),
                     "-f",
                     "best[height<=720]",
                     "-o",
