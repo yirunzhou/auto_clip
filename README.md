@@ -7,7 +7,7 @@ auto_clip helps you turn long transcripts into curated YouTube references. Uploa
 - Python 3.11+.
 - `ffmpeg` on your machine if you plan to trim clips.
 - `yt-dlp` (installed automatically with our requirements). Set `YT_DLP_PATH` if you use a custom binary.
-- Optional: DashScope/Qwen API keys for smarter keyword extraction.
+- Optional but highly recommended: DashScope/Qwen API keys for smarter keyword extraction.
 
 ## One-time setup
 
