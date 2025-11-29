@@ -19,9 +19,10 @@ auto_clip helps you turn long transcripts into curated YouTube references. Uploa
 
 2. **Install dependencies**
    ```bash
+   pip install pip-tools
+   pip-compile requirements.in
    pip install -r requirements.txt
    ```
-   (If you maintain deps with `pip-tools`, edit `requirements.in` and run `pip-compile` before installing.)
 
 ## Start the web app
 
