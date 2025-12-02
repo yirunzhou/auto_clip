@@ -71,7 +71,7 @@ auto_clip 帮你把冗长的字幕稿（SRT）自动转成可复用的 YouTube �
 - Python 3.11+
 - 本地安装 `ffmpeg`（如果你需要在本机剪切视频）
 - `yt-dlp`（随 requirements 自动安装）。如果你有自定义的可执行文件，可通过 `YT_DLP_PATH` 指定路径
-- 可选但强烈推荐：配置 DashScope/Qwen API Key，以获取更智能的关键词提取能力
+- 可选但强烈推荐：配置 DashScope/Qwen API Key，以获取更智能的关键词提取能力，需要i云百炼国际版API key (正在寻找替代方案)
 
 ### 一次性安装步骤
 
