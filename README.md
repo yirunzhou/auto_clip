@@ -60,6 +60,8 @@ Every request is logged to `logs/web_app.log`, making it easy to share stack tra
 - **DashScope credential mistakes.**  
   Missing or invalid keys cause the keyword extractor to fall back to KeyBERT silently in the CLI. Check `web_app.log` (look for `Invalid API-key provided` or `LLM keyword extraction unavailable`) or rerun with `DASHSCOPE_API_KEY` set correctly.
 
+## [Video Tutorial](http://youtube.com/watch?v=dYGytHttcJc)
+
 ## auto_clip 快速上手指南
 
 auto_clip 帮你把冗长的字幕稿（SRT）自动转成可复用的 YouTube 精选片段。上传 `.srt` 后，你可以直接浏览推荐的关键片段，并可在浏览器中下载或剪辑视频。
@@ -122,3 +124,5 @@ flask --app web_app.py --debug run
 
 - **DashScope 凭据错误**  
   缺失或无效的 Key 会导致 CLI 静默降级到 KeyBERT。查看 `web_app.log`（搜索 `Invalid API-key provided` 或 `LLM keyword extraction unavailable`），或重新检查 `DASHSCOPE_API_KEY` 是否正确。
+
+### [示例视频](http://youtube.com/watch?v=dYGytHttcJc)
