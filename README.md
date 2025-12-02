@@ -60,16 +60,16 @@ Every request is logged to `logs/web_app.log`, making it easy to share stack tra
 - **DashScope credential mistakes.**  
   Missing or invalid keys cause the keyword extractor to fall back to KeyBERT silently in the CLI. Check `web_app.log` (look for `Invalid API-key provided` or `LLM keyword extraction unavailable`) or rerun with `DASHSCOPE_API_KEY` set correctly.
 
-## [Video Tutorial](http://youtube.com/watch?v=dYGytHttcJc)
+## Video Tutorial: [youtube link](http://youtube.com/watch?v=dYGytHttcJc)
 
 ## auto_clip 快速上手指南
 
-auto_clip 帮你把冗长的字幕稿（SRT）自动转成可复用的 YouTube 精选片段。上传 `.srt` 后，你可以直接浏览推荐的关键片段，并可在浏览器中下载或剪辑视频。
+auto_clip 帮你把冗长的字幕稿（SRT）自动转成可复用的 YouTube 精选片段。上传 `.srt` 后，你可以直接浏览推荐的关键片段，并可在浏览器中下载和剪切视频。
 
 ### 你需要准备
 
 - Python 3.11+
-- 本地安装 `ffmpeg`（如果你需要在本机剪辑视频）
+- 本地安装 `ffmpeg`（如果你需要在本机剪切视频）
 - `yt-dlp`（随 requirements 自动安装）。如果你有自定义的可执行文件，可通过 `YT_DLP_PATH` 指定路径
 - 可选但强烈推荐：配置 DashScope/Qwen API Key，以获取更智能的关键词提取能力
 
@@ -106,8 +106,8 @@ flask --app web_app.py --debug run
 ```
 
 打开浏览器访问 `http://127.0.0.1:5000`：
-- **字幕工作流**：上传 `.srt` 文件，查看自动提取的片段及对应的 YouTube 搜索结果。
-- **手动工作流**：粘贴一组 YouTube 链接，并使用自定义时间码进行下载或剪辑。
+- **字幕工作流(Transcript workflow)**：上传 `.srt` 文件，查看自动提取的片段及对应的 YouTube 搜索结果。
+- **手动工作流(Manual YouTube clips)**：粘贴一组 YouTube 链接，并使用自定义时间码进行下载或剪切。
 
 所有请求都会记录到 `logs/web_app.log`，方便在编辑团队遇到问题时收集堆栈信息。
 
@@ -115,7 +115,6 @@ flask --app web_app.py --debug run
 
 - 在 macOS 用 Homebrew 安装 `ffmpeg`（`brew install ffmpeg`）；Windows 用 Chocolatey（`choco install ffmpeg`）；或从 https://ffmpeg.org/ 下载安装包。
 - `yt-dlp` 默认使用系统 PATH 或 `YT_DLP_PATH` 指定的路径，无需硬编码虚拟环境里的可执行文件。
-- 请同时把 `requirements.in`（顶层依赖）和编译后的 `requirements.txt` 纳入版本控制，以确保可重复安装。
 
 ### 常见问题及解决方法
 
@@ -125,4 +124,4 @@ flask --app web_app.py --debug run
 - **DashScope 凭据错误**  
   缺失或无效的 Key 会导致 CLI 静默降级到 KeyBERT。查看 `web_app.log`（搜索 `Invalid API-key provided` 或 `LLM keyword extraction unavailable`），或重新检查 `DASHSCOPE_API_KEY` 是否正确。
 
-### [示例视频](http://youtube.com/watch?v=dYGytHttcJc)
+### 示例视频: [yt 链接](http://youtube.com/watch?v=dYGytHttcJc)
