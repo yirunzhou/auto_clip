@@ -67,14 +67,7 @@ Results are saved under `output/<srt-name>_<timestamp>/clips_metadata.json`.
 ## Common issues & fixes
 
 - **“Warning: LLM keyword search failed; using local KeyBERT.”**  
-  This banner (and a matching entry in `logs/web_app.log`) means the DashScope/Qwen call failed. Double-check your `.env` matches `.env.example` and that `DASHSCOPE_API_KEY` is populated. If you’re behind a firewall, make sure `DASHSCOPE_ENDPOINT` points at the reachable region endpoint.
-
-- **Hugging Face models can’t download (mainland China / offline).**  
-  Set `HF_ENDPOINT=https://hf-mirror.com` (already suggested in `.env.example`) or another mirror, then run (the repo does **not** ship the cache, so this step downloads it for you):
-  ```bash
-  HF_HOME=./.cache/huggingface python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
-  ```
-  That preloads the KeyBERT backbone into the repo-local cache. Keep `HF_HOME` pointed at the same directory so future runs stay offline-friendly.
+  This banner (and a matching entry in `logs/web_app.log`) means the DashScope/Qwen call failed. Double-check your `.env` matches `.env.example` and that `DASHSCOPE_API_KEY` is populated.
 
 - **DashScope credential mistakes.**  
-  Missing or invalid keys cause the keyword extractor to fall back to KeyBERT silently in the CLI. Check `web_app.log` (look for `LLM keyword extraction unavailable`) or rerun with `DASHSCOPE_API_KEY` set correctly.
+  Missing or invalid keys cause the keyword extractor to fall back to KeyBERT silently in the CLI. Check `web_app.log` (look for `Invalid API-key provided` or `LLM keyword extraction unavailable`) or rerun with `DASHSCOPE_API_KEY` set correctly.
