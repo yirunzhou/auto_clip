@@ -11,7 +11,7 @@ from typing import Iterable
 from .config import OUTPUT_DIR, RESULT_JSON, SEARCH_RESULTS
 from .pipeline import build_segments_metadata, LogFn
 from .searchers import search_youtube
-from .utils import sanitize_id
+from .utils import sanitize_id, ytdlp_cmd
 
 
 def run_metadata_workflow(
@@ -90,7 +90,7 @@ def run_keyword_search_workflow(
 def _fetch_youtube_details(url: str) -> dict | None:
     try:
         proc = subprocess.run(
-            ["venv311/bin/yt-dlp", "--dump-single-json", "--skip-download", url],
+            [ytdlp_cmd(), "--dump-single-json", "--skip-download", url],
             capture_output=True,
             text=True,
             check=False,
