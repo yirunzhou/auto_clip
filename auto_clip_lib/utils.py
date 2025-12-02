@@ -22,3 +22,7 @@ def compose_video_filename(result: Dict[str, Any], suffix: str) -> str:
     suffix = (suffix or "mp4").lstrip(".")
     base = f"{source}_{title}_{identifier}"
     return f"{base}.{suffix or 'mp4'}"
+
+
+class LLMQueryStatusError(Exception):
+    pass

@@ -2,7 +2,7 @@ import json
 import os
 import re
 from typing import Any, List, Optional
-
+from auto_clip_lib.utils import LLMQueryStatusError
 import dashscope
 
 try:
@@ -50,6 +50,8 @@ def fetch_qwen_keywords(
             messages=messages,
             result_format='text'
         )
+        if response.status_code != 200:
+            raise LLMQueryStatusError(f"Request failed: {response.status_code}, {response.message}")
     except Exception as exc:
         raise exc
 
