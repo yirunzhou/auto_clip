@@ -114,7 +114,7 @@ def index():
     if request.method == "POST":
         upload = request.files.get("srt_file")
         if not upload or not upload.filename:
-            error = "Please choose an SRT file to upload."
+            error = "Please choose an SRT or DOCX file to upload."
         else:
             suffix = Path(upload.filename).suffix or ".srt"
             try:
@@ -145,7 +145,7 @@ def index():
                         "expect LLM keywords."
                     )
                 LOGGER.info(
-                    "Processed SRT upload '%s' → %s",
+                    "Processed transcript upload '%s' → %s",
                     upload.filename,
                     metadata_path,
                 )
@@ -155,7 +155,7 @@ def index():
                 metadata_path = None
                 output_dir = None
                 _log_exception(
-                    "SRT processing failed",
+                    "Transcript processing failed",
                     filename=upload.filename,
                     exc=str(exc),
                 )

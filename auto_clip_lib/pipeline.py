@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Callable, Iterable
 
 from .captions import parse_captions
 from .chunking import chunk_segments
 from .config import NO_SEARCH_RESULT, SEARCH_RESULTS
+from .documents import parse_document
 from .keywords import extract_keywords
 from .queries import generate_queries
 from .searchers import search_youtube
@@ -26,7 +28,7 @@ def build_segments_metadata(
         if log_func:
             log_func(message)
 
-    segments = parse_captions(srt_path)
+    segments = _load_segments(srt_path)
     _log(f"→ Parsed {len(segments)} base segments")
 
     segments = chunk_segments(segments)
@@ -76,3 +78,10 @@ def build_segments_metadata(
 
     return segments
 
+
+def _load_segments(source_path: str) -> list[dict]:
+    path = Path(source_path)
+    suffix = path.suffix.lower()
+    if suffix in {".docx", ".doc"}:
+        return parse_document(path)
+    return parse_captions(source_path)

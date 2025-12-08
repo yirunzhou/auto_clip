@@ -3,10 +3,10 @@
 {% block title %}Transcript workflow · auto_clip{% endblock %}
 
 {% block content %}
-  <p>Upload an <code>.srt</code> file to run the keyword → YouTube search pipeline. The app saves results under <code>output/&lt;transcript&gt;_&lt;timestamp&gt;/</code>.</p>
+  <p>Upload an <code>.srt</code> or English <code>.docx</code> file to run the keyword → YouTube search pipeline. The app saves results under <code>output/&lt;transcript&gt;_&lt;timestamp&gt;/</code>.</p>
   <form method="post" enctype="multipart/form-data" data-loading-target="upload-status" data-loading-text="Processing transcript..." data-loading-label="Processing...">
-    <label for="srt_file">Select SRT file:</label>
-    <input type="file" id="srt_file" name="srt_file" accept=".srt" required />
+    <label for="srt_file">Select SRT or DOCX file:</label>
+    <input type="file" id="srt_file" name="srt_file" accept=".srt,.docx" required />
     <button type="submit">Search</button>
   </form>
   <div id="upload-status" class="status"></div>

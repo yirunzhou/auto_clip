@@ -17,13 +17,13 @@ def main():
         description="Automate geopolitical video clip metadata generation."
     )
     parser.add_argument(
-        "srt_file", type=str, help="Path to the source SRT caption file."
+        "srt_file", type=str, help="Path to the source SRT or DOCX file."
     )
     args = parser.parse_args()
 
     srt_file = Path(args.srt_file)
 
-    print(f"→ Parsing captions from {srt_file.name}...")
+    print(f"→ Parsing input from {srt_file.name}...")
     search_providers = (
         # (search_archive_org, "Archive.org"),
         # (search_cspan, "C-SPAN"),  # Enable once API token is available

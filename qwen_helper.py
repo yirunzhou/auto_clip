@@ -33,11 +33,14 @@ def fetch_qwen_keywords(
     key = api_key or DASHSCOPE_API_KEY
     model = model_name or DASHSCOPE_MODEL
     prompt = (
-        "Extract the key geopolitical events in the user's sentence. "
-        "Return a JSON array (max 5 items) of subject-verb-object clauses that name "
-        "the main actor, the action, and the target. Each clause must be concise "
-        "(3-8 words) and formatted for search queries. If the sentence contains a "
-        "time reference, start the clause with it (e.g., 'In 2023, Country X imposes sanctions on Country Y')."
+        "You analyze news paragraphs to recommend b-roll searches. "
+        "Return a JSON array (max 5 items) of short English keyword strings tuned for protests, press conferences, or military footage. "
+        "Use these heuristics:\n"
+        "- Activist or political groups → '<group name> protest' / 'rally' / 'march'.\n"
+        "- Politicians or public figures → '<name> press conference', '<name> news conference', or '<name> briefing'.\n"
+        "- Military branches or armed forces → '<unit> military drill', '<unit> war footage', '<unit> training'.\n"
+        "- If none apply, still focus on combinations likely to yield news b-roll (crowds, briefings, demonstrations) rather than narrative sentences.\n"
+        "Avoid dates and punctuation; just return the keyword phrases ready for YouTube search."
     )
     messages = [
         {'role': 'system', 'content': prompt},
