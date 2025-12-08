@@ -41,7 +41,7 @@ flask --app web_app.py --debug run
 ```
 
 Then browse to `http://127.0.0.1:5000`:
-- **Transcript workflow**: upload an `.srt` or English `.docx` and review the suggested segments + YouTube hits.
+- **Transcript workflow**: upload an `.srt` or English `.docx` (Chinese paragraphs are skipped automatically; strip standalone titles/headlines beforehand so they don't merge into body text) and review the suggested segments + YouTube hits.
 - **Manual workflow**: paste a list of YouTube links and download or trim them with custom timecodes.
 
 Every request is logged to `logs/web_app.log`, making it easy to share stack traces when editors report issues.
@@ -51,7 +51,7 @@ Every request is logged to `logs/web_app.log`, making it easy to share stack tra
 - Install `ffmpeg` via Homebrew (`brew install ffmpeg`), Chocolatey (`choco install ffmpeg`), or grab binaries from https://ffmpeg.org/.
 - `yt-dlp` defaults to your PATH or `YT_DLP_PATH`; no need to hardcode the repo’s `venv` path.
 - Keep both `requirements.in` (top-level deps) and the compiled `requirements.txt` in version control for reproducible installs.
-- Document ingestion currently supports `.docx` inputs only; convert legacy `.doc` files with Word or LibreOffice before uploading.
+- Document ingestion currently supports `.docx` inputs only; convert legacy `.doc` files with Word or LibreOffice before uploading. Chinese-heavy paragraphs are skipped automatically, and it's best to remove standalone titles/headlines beforehand so they don't merge into body paragraphs.
 
 ## Common issues & fixes
 
@@ -116,7 +116,7 @@ flask --app web_app.py --debug run
 
 - 在 macOS 用 Homebrew 安装 `ffmpeg`（`brew install ffmpeg`）；Windows 用 Chocolatey（`choco install ffmpeg`）；或从 https://ffmpeg.org/ 下载安装包。
 - `yt-dlp` 默认使用系统 PATH 或 `YT_DLP_PATH` 指定的路径，无需硬编码虚拟环境里的可执行文件。
-- 文档导入目前仅支持 `.docx` 文件；如果是旧的 `.doc`，请先用 Word 或 LibreOffice 转换。
+- 文档导入目前仅支持 `.docx` 文件；如果是旧的 `.doc`，请先用 Word 或 LibreOffice 转换。中文段落会被自动忽略，建议在上传前删除章节标题，否则标题会和正文合并。
 
 ### 常见问题及解决方法
 
