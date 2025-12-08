@@ -1,71 +1,6 @@
-# auto_clip quickstart
+# auto_clip 快速上手指南
 
-auto_clip helps you turn long transcripts into curated YouTube references. Upload an `.srt`, skim the suggested clips, and (optionally) download or trim them straight from the browser.
-
-## What you need
-
-- Python 3.11+.
-- `ffmpeg` on your machine if you plan to trim clips.
-- `yt-dlp` (installed automatically with our requirements). Set `YT_DLP_PATH` if you use a custom binary.
-- Optional but highly recommended: DashScope/Qwen API keys for smarter keyword extraction.
-
-## One-time setup
-
-1. **Clone & create a virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Windows: venv\Scripts\activate
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pip install pip-tools
-   pip-compile requirements.in
-   pip install -r requirements.txt
-   ```
-
-3. **Configure environment variables**
-
-   Copy `.env.example` to `.env` and fill in the values that apply:
-   ```bash
-   cp .env.example .env
-   ```
-   - Set `DASHSCOPE_API_KEY` (and optionally `DASHSCOPE_MODEL` / `DASHSCOPE_ENDPOINT`) if you want LLM-powered keyword extraction via Qwen/DashScope.
-
-## Start the web app
-
-```bash
-python web_app.py            # default production-style server
-# or, if you need hot reload while developing:
-flask --app web_app.py --debug run
-```
-
-Then browse to `http://127.0.0.1:5000`:
-- **Transcript workflow**: upload an `.srt` or English `.docx` (Chinese paragraphs are skipped automatically; strip standalone titles/headlines beforehand so they don't merge into body text) and review the suggested segments + YouTube hits.
-- **Manual workflow**: paste a list of YouTube links and download or trim them with custom timecodes.
-
-Every request is logged to `logs/web_app.log`, making it easy to share stack traces when editors report issues.
-
-## Tips
-
-- Install `ffmpeg` via Homebrew (`brew install ffmpeg`), Chocolatey (`choco install ffmpeg`), or grab binaries from https://ffmpeg.org/.
-- `yt-dlp` defaults to your PATH or `YT_DLP_PATH`; no need to hardcode the repo’s `venv` path.
-- Keep both `requirements.in` (top-level deps) and the compiled `requirements.txt` in version control for reproducible installs.
-- Document ingestion currently supports `.docx` inputs only; convert legacy `.doc` files with Word or LibreOffice before uploading. Chinese-heavy paragraphs are skipped automatically, and it's best to remove standalone titles/headlines beforehand so they don't merge into body paragraphs.
-
-## Common issues & fixes
-
-- **“Warning: LLM keyword search failed; using local KeyBERT.”**  
-  This banner (and a matching entry in `logs/web_app.log`) means the DashScope/Qwen call failed. Double-check your `.env` matches `.env.example` and that `DASHSCOPE_API_KEY` is populated.
-
-- **DashScope credential mistakes.**  
-  Missing or invalid keys cause the keyword extractor to fall back to KeyBERT silently in the CLI. Check `web_app.log` (look for `Invalid API-key provided` or `LLM keyword extraction unavailable`) or rerun with `DASHSCOPE_API_KEY` set correctly.
-
-## Video Tutorial: [youtube link](http://youtube.com/watch?v=dYGytHttcJc)
-
-## auto_clip 快速上手指南
-
-auto_clip 帮你把冗长的字幕稿（SRT）自动转成可复用的 YouTube 精选片段。上传 `.srt` 后，你可以直接浏览推荐的关键片段，并可在浏览器中下载和剪切视频。
+auto_clip 帮你把冗长的字幕稿（SRT）或英文 `.docx` 文档转成可复用的 YouTube 精选片段。上传文件后，可以直接浏览推荐片段并在浏览器中下载或剪辑。导入 DOCX 时，系统会自动跳过中文占比高的段落，因此建议上传前删除纯中文段落或标题，确保正文主要是英文。
 
 ### 你需要准备
 
@@ -117,6 +52,7 @@ flask --app web_app.py --debug run
 - 在 macOS 用 Homebrew 安装 `ffmpeg`（`brew install ffmpeg`）；Windows 用 Chocolatey（`choco install ffmpeg`）；或从 https://ffmpeg.org/ 下载安装包。
 - `yt-dlp` 默认使用系统 PATH 或 `YT_DLP_PATH` 指定的路径，无需硬编码虚拟环境里的可执行文件。
 - 文档导入目前仅支持 `.docx` 文件；如果是旧的 `.doc`，请先用 Word 或 LibreOffice 转换。中文段落会被自动忽略，建议在上传前删除章节标题，否则标题会和正文合并。
+- 如果希望在本地运行测试或 CI，请额外安装 `requirements-dev.txt` 中的开发依赖（包含 pytest）。
 
 ### 常见问题及解决方法
 
@@ -127,3 +63,74 @@ flask --app web_app.py --debug run
   缺失或无效的 Key 会导致 CLI 静默降级到 KeyBERT。查看 `web_app.log`（搜索 `Invalid API-key provided` 或 `LLM keyword extraction unavailable`），或重新检查 `DASHSCOPE_API_KEY` 是否正确。
 
 ### 示例视频: [yt 链接](http://youtube.com/watch?v=dYGytHttcJc)
+
+---
+
+# auto_clip quickstart
+
+auto_clip helps you turn long transcripts (SRT) or English `.docx` documents into curated YouTube references. Upload the file, skim suggested clips, and optionally download or trim them in the browser. During DOCX ingestion, paragraphs dominated by Chinese characters are skipped automatically, so keep the content English-only and strip standalone headings before uploading.
+
+## What you need
+
+- Python 3.11+.
+- `ffmpeg` installed locally if you plan to trim clips.
+- `yt-dlp` (bundled via `requirements.txt`; override with `YT_DLP_PATH` if needed).
+- Optional but recommended: DashScope/Qwen API keys for smarter keyword extraction.
+
+## One-time setup
+
+1. **Clone & create a virtual environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pip install pip-tools
+   pip-compile requirements.in
+   pip install -r requirements.txt
+   ```
+
+3. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   ```
+   - Populate `DASHSCOPE_API_KEY` (and optionally `DASHSCOPE_MODEL` / `DASHSCOPE_ENDPOINT`) to enable Qwen/DashScope keyword extraction.
+
+## Start the web app
+
+```bash
+python web_app.py            # default production-style server
+# or, if you need hot reload while developing:
+flask --app web_app.py --debug run
+```
+
+Then browse to `http://127.0.0.1:5000`:
+- **Transcript workflow**: upload an `.srt` or English `.docx` (after removing headings/Chinese paragraphs) and review the suggested segments + YouTube hits.
+- **Manual workflow**: paste a list of YouTube links and download or trim them with custom timecodes.
+
+Every request is logged to `logs/web_app.log`, making it easy to share stack traces when editors report issues.
+
+## Tips
+
+- Install `ffmpeg` via Homebrew (`brew install ffmpeg`), Chocolatey (`choco install ffmpeg`), or grab binaries from https://ffmpeg.org/.
+- `yt-dlp` defaults to your PATH or `YT_DLP_PATH`; no need to hardcode the repo’s `venv` path.
+- Keep both `requirements.in` (top-level deps) and the compiled `requirements.txt` in version control for reproducible installs.
+- Document ingestion currently supports `.docx` inputs only; convert legacy `.doc` files before uploading. Paragraphs with heavy Chinese content are skipped, so titles/headlines should be removed upfront.
+- Install `requirements-dev.txt` if you plan to run the pytest suite locally or in CI.
+
+## Common issues & fixes
+
+- **“Warning: LLM keyword search failed; using local KeyBERT.”**  
+  This banner (and a matching entry in `logs/web_app.log`) means the DashScope/Qwen call failed. Double-check your `.env` matches `.env.example` and that `DASHSCOPE_API_KEY` is populated.
+
+- **DashScope credential mistakes.**  
+  Missing or invalid keys cause the keyword extractor to fall back to KeyBERT silently in the CLI. Check `web_app.log` (look for `Invalid API-key provided` or `LLM keyword extraction unavailable`) or rerun with `DASHSCOPE_API_KEY` set correctly.
+
+## CI & tests
+
+- Install dev dependencies with `pip install -r requirements-dev.txt`.
+- Run `pytest` (or `PYTHONPATH=. pytest`) before submitting changes; GitHub Actions (`.github/workflows/tests.yml`) does the same on every PR.
+
+## Video Tutorial: [youtube link](http://youtube.com/watch?v=dYGytHttcJc)
