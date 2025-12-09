@@ -3,7 +3,7 @@ from __future__ import annotations
 from auto_clip_lib.pipeline import build_segments_metadata
 
 
-def test_pipeline_with_srt(fixtures_dir, fake_search):
+def test_pipeline_with_srt(fixtures_dir, fake_search, stub_llm):
     srt_path = fixtures_dir / "sample.srt"
 
     segments = build_segments_metadata(
@@ -19,7 +19,7 @@ def test_pipeline_with_srt(fixtures_dir, fake_search):
         assert seg["queries_tried"]
 
 
-def test_pipeline_with_docx(fixtures_dir, fake_search):
+def test_pipeline_with_docx(fixtures_dir, fake_search, stub_llm):
     docx_path = fixtures_dir / "sample.docx"
 
     segments = build_segments_metadata(
