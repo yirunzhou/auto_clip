@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import List, Tuple
 
-SENTENCE_ENDINGS = {".", "?", "!", "…"}
+SENTENCE_ENDINGS = {".", "?", "!", "…", "。", "?", "!", ";"}
 TRAILING_CHARS = {'"', "'", "”", "’", ")"}
 
 
