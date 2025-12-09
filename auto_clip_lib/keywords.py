@@ -1,6 +1,7 @@
 """Keyword extraction helpers."""
 
 import logging
+import re
 from typing import Iterable, List
 
 from keybert import KeyBERT
@@ -8,6 +9,8 @@ from keybert import KeyBERT
 from qwen_helper import fetch_qwen_keywords
 
 LOGGER = logging.getLogger(__name__)
+
+HAN_REGEX = re.compile(r"[\u4E00-\u9FFF]")
 
 _kw_model: KeyBERT | None = None
 
@@ -28,10 +31,16 @@ def extract_keywords(segments: list[dict]) -> list[dict]:
     kw_model = _get_model()
     for seg in segments:
         text = seg["text"]
+        has_chinese = bool(HAN_REGEX.search(text))
         try:
             keywords = fetch_qwen_keywords(text)
             seg["_keyword_source"] = "llm"
-        except Exception:  # pragma: no cover - service/network failures
+        except Exception as exc:  # pragma: no cover - service/network failures
+            if has_chinese:
+                raise RuntimeError(
+                    "Chinese text requires LLM keyword extraction; configure "
+                    "DASHSCOPE_API_KEY for DashScope/Qwen access."
+                ) from exc
             snippet = _build_snippet(text)
             LOGGER.warning(
                 "LLM keyword extraction unavailable; falling back to local KeyBERT. "

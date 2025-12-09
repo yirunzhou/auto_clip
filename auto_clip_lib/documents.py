@@ -20,7 +20,7 @@ WHITESPACE_REGEX = re.compile(r"\s+")
 
 
 def parse_document(doc_path: str | Path) -> list[dict]:
-    """Return caption-like segments from a DOCX file, skipping Chinese paragraphs."""
+    """Return caption-like segments from a DOCX file, preserving paragraph order."""
 
     path = Path(doc_path)
     if not path.exists():
@@ -32,23 +32,19 @@ def parse_document(doc_path: str | Path) -> list[dict]:
     if suffix != ".docx":
         raise ValueError(f"Unsupported document type: {suffix or 'unknown'}")
 
-    paragraphs = _load_docx_paragraphs(path)
-
-    english_only = []
-    for paragraph in paragraphs:
-        text = _normalize_text(paragraph)
-        if not text or _is_chinese_dominant(text):
-            continue
-        english_only.append(text)
-
     segments: list[dict] = []
-    for idx, text in enumerate(english_only):
+    for idx, paragraph in enumerate(_load_docx_paragraphs(path)):
+        text = _normalize_text(paragraph)
+        if not text:
+            continue
+        segment_idx = len(segments)
         segments.append(
             {
-                "start": float(idx),
-                "end": float(idx + 1),
+                "start": float(segment_idx),
+                "end": float(segment_idx + 1),
                 "text": text,
                 "paragraph_index": idx,
+                "has_chinese": bool(HAN_REGEX.search(text)),
             }
         )
     return segments

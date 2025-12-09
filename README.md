@@ -1,6 +1,6 @@
 # auto_clip 快速上手指南
 
-auto_clip 帮你把冗长的字幕稿（SRT）或英文 `.docx` 文档转成可复用的 YouTube 精选片段。上传文件后，可以直接浏览推荐片段并在浏览器中下载或剪辑。导入 DOCX 时，系统会自动跳过中文占比高的段落，因此建议上传前删除纯中文段落或标题，确保正文主要是英文。
+auto_clip 帮你把冗长的字幕稿（SRT）或 `.docx` 文档转成可复用的 YouTube 精选片段。上传文件后，可以直接浏览推荐片段并在浏览器中下载或剪辑。DOCX 中的中文段落也会参与分析，但如果 DashScope/Qwen LLM 不可用，系统会提示错误（暂不支持中文段落的本地降级处理）。
 
 ### 你需要准备
 
@@ -51,7 +51,7 @@ flask --app web_app.py --debug run
 
 - 在 macOS 用 Homebrew 安装 `ffmpeg`（`brew install ffmpeg`）；Windows 用 Chocolatey（`choco install ffmpeg`）；或从 https://ffmpeg.org/ 下载安装包。
 - `yt-dlp` 默认使用系统 PATH 或 `YT_DLP_PATH` 指定的路径，无需硬编码虚拟环境里的可执行文件。
-- 文档导入目前仅支持 `.docx` 文件；如果是旧的 `.doc`，请先用 Word 或 LibreOffice 转换。中文段落会被自动忽略，建议在上传前删除章节标题，否则标题会和正文合并。
+- 文档导入目前仅支持 `.docx` 文件；如果是旧的 `.doc`，请先用 Word 或 LibreOffice 转换。中文段落会被保留并需要 LLM 提取关键词，若未配置 DashScope/Qwen，将直接报错；建议上传前删除单独的标题，避免与正文拼接。
 - 如果希望在本地运行测试或 CI，请额外安装 `requirements-dev.txt` 中的开发依赖（包含 pytest）。
 
 ### 常见问题及解决方法
@@ -68,7 +68,7 @@ flask --app web_app.py --debug run
 
 # auto_clip quickstart
 
-auto_clip helps you turn long transcripts (SRT) or English `.docx` documents into curated YouTube references. Upload the file, skim suggested clips, and optionally download or trim them in the browser. During DOCX ingestion, paragraphs dominated by Chinese characters are skipped automatically, so keep the content English-only and strip standalone headings before uploading.
+auto_clip helps you turn long transcripts (SRT) or `.docx` documents into curated YouTube references. Upload the file, skim suggested clips, and optionally download or trim them in the browser. DOCX paragraphs can contain Chinese, but they require DashScope/Qwen for keyword extraction—without an LLM the workflow aborts instead of falling back to KeyBERT.
 
 ## What you need
 
@@ -117,7 +117,7 @@ Every request is logged to `logs/web_app.log`, making it easy to share stack tra
 - Install `ffmpeg` via Homebrew (`brew install ffmpeg`), Chocolatey (`choco install ffmpeg`), or grab binaries from https://ffmpeg.org/.
 - `yt-dlp` defaults to your PATH or `YT_DLP_PATH`; no need to hardcode the repo’s `venv` path.
 - Keep both `requirements.in` (top-level deps) and the compiled `requirements.txt` in version control for reproducible installs.
-- Document ingestion currently supports `.docx` inputs only; convert legacy `.doc` files before uploading. Paragraphs with heavy Chinese content are skipped, so titles/headlines should be removed upfront.
+- Document ingestion currently supports `.docx` inputs only; convert legacy `.doc` files before uploading. Chinese paragraphs are preserved but need an active DashScope/Qwen configuration (no local fallback), so strip standalone headings to keep paragraphs clean.
 - Install `requirements-dev.txt` if you plan to run the pytest suite locally or in CI.
 
 ## Common issues & fixes
