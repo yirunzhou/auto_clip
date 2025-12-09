@@ -24,7 +24,7 @@ def _fake_llm(text: str, max_terms: int = 5, api_key=None, model_name=None) -> l
     return [f"{base} protest"]
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def stub_llm(monkeypatch):
     monkeypatch.setattr(
         "auto_clip_lib.keywords.fetch_qwen_keywords", _fake_llm

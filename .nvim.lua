@@ -5,7 +5,7 @@ if not ok then return end
 telescope.setup({
     defaults = {
         file_ignore_patterns = {
-            "venv311/",
+            "venv/",
             "%.vtt",
             "%.mp4",
             "%.git/",
