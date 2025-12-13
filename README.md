@@ -1,6 +1,6 @@
 # auto_clip 快速上手指南
 
-auto_clip 帮你把冗长的字幕稿（SRT）或 `.docx` 文档转成可复用的 YouTube 精选片段。上传文件后，可以直接浏览推荐片段并在浏览器中下载或剪辑。DOCX 中的中文段落也会参与分析，但如果 DashScope/Qwen LLM 不可用，系统会提示错误（暂不支持中文段落的本地降级处理）。
+auto_clip 帮你把冗长的字幕稿（SRT）或 `.docx` 文档转成可复用的 YouTube 精选片段。上传文件后，可以直接浏览推荐片段并在浏览器中下载或剪辑。DOCX 中的中英文段落都会参与分析；如未启用 DashScope/Qwen，将自动退回到本地 KeyBERT（效果略弱）。
 
 ### 你需要准备
 
@@ -42,7 +42,7 @@ flask --app web_app.py --debug run
 ```
 
 打开浏览器访问 `http://127.0.0.1:5000`：
-- **字幕工作流(Transcript workflow)**：上传 `.srt` 或英文 `.docx` 文件，查看自动提取的片段及对应的 YouTube 搜索结果。
+- **字幕工作流(Transcript workflow)**：上传 `.srt` 或英文 `.docx` 文件，查看自动提取的片段及对应的 YouTube 搜索结果。长文档会分页处理，如看到 “Continue processing” 提示，可按提示继续生成下一批结果。
 - **手动工作流(Manual YouTube clips)**：粘贴一组 YouTube 链接，并使用自定义时间码进行下载或剪切。
 
 所有请求都会记录到 `logs/web_app.log`，方便在编辑团队遇到问题时收集堆栈信息。
@@ -51,7 +51,7 @@ flask --app web_app.py --debug run
 
 - 在 macOS 用 Homebrew 安装 `ffmpeg`（`brew install ffmpeg`）；Windows 用 Chocolatey（`choco install ffmpeg`）；或从 https://ffmpeg.org/ 下载安装包。
 - `yt-dlp` 默认使用系统 PATH 或 `YT_DLP_PATH` 指定的路径，无需硬编码虚拟环境里的可执行文件。
-- 文档导入目前仅支持 `.docx` 文件；如果是旧的 `.doc`，请先用 Word 或 LibreOffice 转换。中文段落会被保留并需要 LLM 提取关键词，若未配置 DashScope/Qwen，将直接报错；建议上传前删除单独的标题，避免与正文拼接。
+- 文档导入目前仅支持 `.docx` 文件；如果是旧的 `.doc`，请先用 Word 或 LibreOffice 转换。中文段落会被保留并推荐使用 DashScope/Qwen 提取关键词，若未配置将退回到本地 KeyBERT；建议上传前删除单独的标题，避免与正文拼接。
 - 如果希望在本地运行测试或 CI，请额外安装 `requirements-dev.txt` 中的开发依赖（包含 pytest）。
 
 ### 常见问题及解决方法
@@ -68,7 +68,7 @@ flask --app web_app.py --debug run
 
 # auto_clip quickstart
 
-auto_clip helps you turn long transcripts (SRT) or `.docx` documents into curated YouTube references. Upload the file, skim suggested clips, and optionally download or trim them in the browser. DOCX paragraphs can contain Chinese, but they require DashScope/Qwen for keyword extraction—without an LLM the workflow aborts instead of falling back to KeyBERT.
+auto_clip helps you turn long transcripts (SRT) or `.docx` documents into curated YouTube references. Upload the file, skim suggested clips, and optionally download or trim them in the browser. DOCX paragraphs may include Chinese; DashScope/Qwen is recommended for keywords, but the app now falls back to the multilingual KeyBERT model when the LLM isn’t available.
 
 ## What you need
 
@@ -107,7 +107,7 @@ flask --app web_app.py --debug run
 ```
 
 Then browse to `http://127.0.0.1:5000`:
-- **Transcript workflow**: upload an `.srt` or English `.docx` (after removing headings/Chinese paragraphs) and review the suggested segments + YouTube hits.
+- **Transcript workflow**: upload an `.srt` or `.docx` (after basic cleanup) and review the suggested segments + YouTube hits. Long inputs are paginated; click “Continue processing” when prompted to generate the next batch of segments.
 - **Manual workflow**: paste a list of YouTube links and download or trim them with custom timecodes.
 
 Every request is logged to `logs/web_app.log`, making it easy to share stack traces when editors report issues.
@@ -117,7 +117,7 @@ Every request is logged to `logs/web_app.log`, making it easy to share stack tra
 - Install `ffmpeg` via Homebrew (`brew install ffmpeg`), Chocolatey (`choco install ffmpeg`), or grab binaries from https://ffmpeg.org/.
 - `yt-dlp` defaults to your PATH or `YT_DLP_PATH`; no need to hardcode the repo’s `venv` path.
 - Keep both `requirements.in` (top-level deps) and the compiled `requirements.txt` in version control for reproducible installs.
-- Document ingestion currently supports `.docx` inputs only; convert legacy `.doc` files before uploading. Chinese paragraphs are preserved but need an active DashScope/Qwen configuration (no local fallback), so strip standalone headings to keep paragraphs clean.
+- Document ingestion currently supports `.docx` inputs only; convert legacy `.doc` files before uploading. Chinese paragraphs are preserved; DashScope/Qwen yields the best keywords, but the multilingual KeyBERT fallback is used automatically if the LLM is unavailable.
 - Install `requirements-dev.txt` if you plan to run the pytest suite locally or in CI.
 
 ## Common issues & fixes

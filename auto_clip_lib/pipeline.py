@@ -28,19 +28,48 @@ def build_segments_metadata(
         if log_func:
             log_func(message)
 
-    segments = _load_segments(srt_path)
-    _log(f"→ Parsed {len(segments)} base segments")
+    segments = prepare_segments(srt_path, log_func=_log)
+    segments = enrich_segments(
+        segments,
+        log_func=_log,
+        search_providers=search_providers,
+        start_offset=0,
+    )
+    return segments
 
+
+def prepare_segments(
+    source_path: str,
+    log_func: LogFn | None = print,
+) -> list[dict]:
+    def _log(message: str) -> None:
+        if log_func:
+            log_func(message)
+
+    segments = _load_segments(source_path)
+    _log(f"→ Parsed {len(segments)} base segments")
     segments = chunk_segments(segments)
     _log(f"→ Regrouped into {len(segments)} multi-sentence segments for search.")
+    return segments
+
+
+def enrich_segments(
+    segments: list[dict],
+    log_func: LogFn | None = print,
+    search_providers: Iterable | None = None,
+    start_offset: int = 0,
+) -> list[dict]:
+    def _log(message: str) -> None:
+        if log_func:
+            log_func(message)
 
     segments = extract_keywords(segments)
     _log("→ Extracted keywords for each segment.")
 
     providers = search_providers or ((search_youtube, "YouTube"),)
-    for i, seg in enumerate(segments):
+    for idx, seg in enumerate(segments, start=start_offset):
         query_candidates = generate_queries(seg)
-        _log(f"[{i}] Searching: {query_candidates[0] if query_candidates else ''}")
+        _log(f"[{idx}] Searching: {query_candidates[0] if query_candidates else ''}")
         seg["queries_tried"] = query_candidates
         results = []
 
