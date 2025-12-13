@@ -8,3 +8,4 @@ CLIP_BUFFER = 1.5  # seconds extra for editors
 TRANSCRIPT_SOURCES = {"archive.org", "c-span", "youtube"}
 DIRECT_DOWNLOAD_EXTS = (".mp4", ".mov", ".m4v")
 NO_SEARCH_RESULT = "{search_source} returns no result for {keywords}"
+CHUNK_CACHE = "chunked_segments.json"

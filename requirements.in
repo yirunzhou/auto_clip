@@ -10,3 +10,5 @@ ffmpeg
 python-dotenv
 internetarchive
 numpy<2
+jieba
+sentencepiece

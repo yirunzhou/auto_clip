@@ -13,7 +13,11 @@ from flask import Flask, render_template, request
 from auto_clip_lib.config import OUTPUT_DIR
 from auto_clip_lib.media import download_video, trim_clip
 from auto_clip_lib.utils import sanitize_id
-from auto_clip_lib.workflow import run_metadata_workflow, run_youtube_links_workflow
+from auto_clip_lib.workflow import (
+    run_metadata_workflow,
+    run_paginated_workflow,
+    run_youtube_links_workflow,
+)
 
 
 app = Flask(__name__)
@@ -30,6 +34,7 @@ LOG_FILE_HANDLER.setFormatter(
 
 logging.basicConfig(level=logging.INFO, handlers=[LOG_FILE_HANDLER])
 LOGGER = logging.getLogger(__name__)
+PAGE_SIZE = 8
 
 
 def _log_exception(message: str, **context: Any) -> None:
@@ -110,58 +115,105 @@ def index():
     output_dir = None
     error = None
     status_message = None
+    pagination = None
+    show_status = False
 
     if request.method == "POST":
-        upload = request.files.get("srt_file")
-        if not upload or not upload.filename:
-            error = "Please choose an SRT or DOCX file to upload."
-        else:
-            suffix = Path(upload.filename).suffix or ".srt"
+        if request.form.get("continue_page"):
             try:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    temp_file = Path(tmp.name)
-                    upload.save(str(temp_file))
-                output_prefix = Path(upload.filename).stem or "upload"
+                start_index = int(request.form.get("next_index") or 0)
+                existing_output_dir = request.form.get("output_dir") or ""
                 (
                     segments,
                     output_dir_path,
                     metadata_file,
-                    _,
-                ) = run_metadata_workflow(
-                    str(temp_file),
+                    next_index,
+                    total_segments,
+                ) = run_paginated_workflow(
+                    None,
                     log_func=None,
-                    create_trimmed_dir=False,
-                    output_prefix=output_prefix,
+                    search_providers=None,
+                    start_index=start_index,
+                    page_size=PAGE_SIZE,
+                    existing_output_dir=existing_output_dir,
                 )
                 metadata_path = str(metadata_file)
                 output_dir = str(output_dir_path)
-                if any(
-                    (seg.get("_keyword_source") == "keybert")
-                    for seg in segments or []
-                ):
-                    status_message = (
-                        "Warning: LLM keyword search failed; using local KeyBERT. "
-                        "Set DASHSCOPE_API_KEY in your .env (see .env.example) if you "
-                        "expect LLM keywords."
-                    )
-                LOGGER.info(
-                    "Processed transcript upload '%s' → %s",
-                    upload.filename,
-                    metadata_path,
-                )
-            except Exception as exc:  # pragma: no cover - runtime diagnostics
-                error = f"Failed to process file: {exc}"
+                pagination = {
+                    "next_index": next_index,
+                    "total_segments": total_segments,
+                    "has_more": next_index < total_segments,
+                    "current_start": start_index,
+                    "current_end": min(next_index, total_segments),
+                }
+                show_status = True
+            except Exception as exc:
+                error = f"Failed to continue pagination: {exc}"
                 segments = None
                 metadata_path = None
                 output_dir = None
-                _log_exception(
-                    "Transcript processing failed",
-                    filename=upload.filename,
-                    exc=str(exc),
-                )
-            finally:
-                if "temp_file" in locals():
-                    temp_file.unlink(missing_ok=True)
+                _log_exception("Pagination continue failed", exc=str(exc))
+        else:
+            upload = request.files.get("srt_file")
+            if not upload or not upload.filename:
+                error = "Please choose an SRT or DOCX file to upload."
+            else:
+                suffix = Path(upload.filename).suffix or ".srt"
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        temp_file = Path(tmp.name)
+                        upload.save(str(temp_file))
+                    output_prefix = Path(upload.filename).stem or "upload"
+                    (
+                        segments,
+                        output_dir_path,
+                        metadata_file,
+                        next_index,
+                        total_segments,
+                    ) = run_paginated_workflow(
+                        str(temp_file),
+                        log_func=None,
+                        search_providers=None,
+                        start_index=0,
+                        page_size=PAGE_SIZE,
+                        output_prefix=output_prefix,
+                    )
+                    metadata_path = str(metadata_file)
+                    output_dir = str(output_dir_path)
+                    pagination = {
+                        "next_index": next_index,
+                        "total_segments": total_segments,
+                        "has_more": next_index < total_segments,
+                        "current_start": 0,
+                        "current_end": min(next_index, total_segments),
+                    }
+                    show_status = True
+                    LOGGER.info(
+                        "Processed transcript upload '%s' → %s",
+                        upload.filename,
+                        metadata_path,
+                    )
+                except Exception as exc:  # pragma: no cover - runtime diagnostics
+                    error = f"Failed to process file: {exc}"
+                    segments = None
+                    metadata_path = None
+                    output_dir = None
+                    _log_exception(
+                        "Transcript processing failed",
+                        filename=upload.filename,
+                        exc=str(exc),
+                    )
+                finally:
+                    if "temp_file" in locals():
+                        temp_file.unlink(missing_ok=True)
+
+    if show_status and segments:
+        if any((seg.get("_keyword_source") == "keybert") for seg in segments):
+            status_message = (
+                "Warning: LLM keyword search failed; using local KeyBERT. "
+                "Set DASHSCOPE_API_KEY in your .env (see .env.example) if you "
+                "expect LLM keywords."
+            )
 
     return render_template(
         "index.html",
@@ -170,6 +222,7 @@ def index():
         output_dir=output_dir,
         error=error,
         status_message=status_message,
+        pagination=pagination,
     )
 
 

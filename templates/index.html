@@ -4,10 +4,10 @@
 
 {% block content %}
   <p>
-    Upload an <code>.srt</code> or English <code>.docx</code> file to run the keyword → YouTube search pipeline.
-    Chinese-heavy paragraphs are skipped automatically, so keep the document English-only and remove standalone titles/headlines first so they don't merge into body text.
+    Upload an <code>.srt</code> or <code>.docx</code> file to run the keyword → YouTube search pipeline.
+    Mixed English/Chinese paragraphs are supported, but Chinese sections require the DashScope/Qwen LLM for keywords, so configure it or expect local KeyBERT fallbacks.
     <br />
-    上传 <code>.srt</code> 或 <code>.docx</code> 文件即可运行关键词→YouTube 搜索流程。中英段落都会被识别，但是建议提前删除纯标题/小节名称，避免它们与正文拼接在一起。
+    上传 <code>.srt</code> 或 <code>.docx</code> 文件即可运行关键词→YouTube 搜索流程。中文段落需要 LLM 才能提取关键词，如未配置 DashScope/Qwen 会退回到本地模型，建议提前删除纯标题/小节名称以保证段落干净。
     The app saves results under <code>output/&lt;transcript&gt;_&lt;timestamp&gt;/</code>.
   </p>
   <form method="post" enctype="multipart/form-data" data-loading-target="upload-status" data-loading-text="Processing transcript..." data-loading-label="Processing...">
@@ -22,11 +22,13 @@
     {% if metadata_path %}
       <p><strong>Metadata JSON:</strong> {{ metadata_path }}</p>
     {% endif %}
+    {% if pagination %}
+      <p><strong>Showing segments {{ pagination.current_start + 1 }}–{{ pagination.current_end }} of {{ pagination.total_segments }}.</strong></p>
+    {% endif %}
     {% for seg in segments %}
       {% if seg.video_results %}
         <div class="segment">
           <h3>Segment {{ loop.index }}</h3>
-          <p><strong>Time:</strong> {{ "%.2f"|format(seg.start) }}s → {{ "%.2f"|format(seg.end) }}s</p>
           <p>{{ seg.text }}</p>
           <p><strong>Queries tried:</strong> {{ seg.queries_tried|join(', ') }}</p>
           <ul>
@@ -57,6 +59,20 @@
     {% endfor %}
   {% elif segments is not none %}
     <p>No YouTube results found for this transcript.</p>
+  {% endif %}
+
+  {% if pagination and pagination.has_more and metadata_path and output_dir %}
+    <form method="post" class="notice">
+      <p>More text remains to be processed. Continue to analyze the next batch of segments.</p>
+      <input type="hidden" name="continue_page" value="1" />
+      <input type="hidden" name="output_dir" value="{{ output_dir }}" />
+      <input type="hidden" name="metadata_path" value="{{ metadata_path }}" />
+      <input type="hidden" name="next_index" value="{{ pagination.next_index }}" />
+      <input type="hidden" name="total_segments" value="{{ pagination.total_segments }}" />
+      <button type="submit">Continue processing</button>
+    </form>
+  {% elif pagination and not pagination.has_more %}
+    <p><strong>All segments have been processed.</strong></p>
   {% endif %}
 
   <p>Need to clip specific YouTube links instead? <a href="{{ url_for('youtube_links') }}">Use the manual workflow.</a></p>
