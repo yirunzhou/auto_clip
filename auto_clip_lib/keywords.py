@@ -4,9 +4,11 @@ import logging
 import re
 from typing import Iterable, List, Tuple
 
+import jieba
 import torch
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import CountVectorizer
 
 from qwen_helper import fetch_qwen_keywords
 
@@ -16,6 +18,7 @@ HAN_REGEX = re.compile(r"[\u4E00-\u9FFF]")
 
 _kw_model: KeyBERT | None = None
 _translator_bundle: Tuple | None = None
+_jieba_vectorizer: CountVectorizer | None = None
 
 
 def _get_model() -> KeyBERT:
@@ -51,6 +54,7 @@ def extract_keywords(segments: list[dict]) -> list[dict]:
             seg["_keyword_source"] = "keybert"
             keywords = kw_model.extract_keywords(
                 text,
+                vectorizer=_get_vectorizer(text),
                 keyphrase_ngram_range=(1, 2),
                 stop_words=None,
             )
@@ -121,3 +125,19 @@ def _get_translator():
         model.to(device)
         _translator_bundle = (model, tokenizer, device)
     return _translator_bundle
+
+
+def _get_vectorizer(text: str) -> CountVectorizer | None:
+    if HAN_REGEX.search(text):
+        global _jieba_vectorizer
+        if _jieba_vectorizer is None:
+            def _jieba_tokenizer(value: str) -> list[str]:
+                return list(jieba.cut(value))
+
+            _jieba_vectorizer = CountVectorizer(
+                tokenizer=_jieba_tokenizer,
+                token_pattern=None,
+                ngram_range=(1, 2),
+            )
+        return _jieba_vectorizer
+    return None

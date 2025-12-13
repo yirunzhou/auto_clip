@@ -29,7 +29,6 @@
       {% if seg.video_results %}
         <div class="segment">
           <h3>Segment {{ loop.index }}</h3>
-          <p><strong>Time:</strong> {{ "%.2f"|format(seg.start) }}s → {{ "%.2f"|format(seg.end) }}s</p>
           <p>{{ seg.text }}</p>
           <p><strong>Queries tried:</strong> {{ seg.queries_tried|join(', ') }}</p>
           <ul>
