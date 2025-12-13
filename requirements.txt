@@ -66,6 +66,8 @@ internetarchive==5.7.1
     # via -r requirements.in
 itsdangerous==2.2.0
     # via flask
+jieba==0.42.1
+    # via -r requirements.in
 jinja2==3.1.6
     # via
     #   flask
@@ -149,6 +151,8 @@ sentence-transformers==5.1.2
     # via
     #   -r requirements.in
     #   keybert
+sentencepiece==0.2.1
+    # via -r requirements.in
 sympy==1.14.0
     # via torch
 threadpoolctl==3.6.0
