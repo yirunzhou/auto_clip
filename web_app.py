@@ -294,6 +294,36 @@ def download_clip():
     error = None
     status_message = None
     metadata_obj = None
+    pagination = None
+
+    def _read_int(field: str) -> int | None:
+        raw = request.form.get(field, "").strip()
+        if not raw:
+            return None
+        try:
+            return int(raw)
+        except ValueError:
+            return None
+
+    total_segments = _read_int("pagination_total_segments")
+    next_index = _read_int("pagination_next_index")
+    current_start = _read_int("pagination_current_start")
+    current_end = _read_int("pagination_current_end")
+    has_more_raw = request.form.get("pagination_has_more", "").strip()
+    if (
+        total_segments is not None
+        and next_index is not None
+        and current_start is not None
+        and current_end is not None
+        and has_more_raw
+    ):
+        pagination = {
+            "total_segments": total_segments,
+            "next_index": next_index,
+            "current_start": current_start,
+            "current_end": current_end,
+            "has_more": has_more_raw == "1",
+        }
 
     try:
         if not metadata_path or not output_dir:
@@ -366,6 +396,7 @@ def download_clip():
         output_dir=output_dir or None,
         error=error,
         status_message=status_message,
+        pagination=pagination,
     )
 
 

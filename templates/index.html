@@ -10,7 +10,7 @@
     上传 <code>.srt</code> 或 <code>.docx</code> 文件即可运行关键词→YouTube 搜索流程。中文段落需要 LLM 才能提取关键词，如未配置 DashScope/Qwen 会退回到本地模型，建议提前删除纯标题/小节名称以保证段落干净。
     The app saves results under <code>output/&lt;transcript&gt;_&lt;timestamp&gt;/</code>.
   </p>
-  <form method="post" enctype="multipart/form-data" data-loading-target="upload-status" data-loading-text="Processing transcript..." data-loading-label="Processing...">
+  <form method="post" action="{{ url_for('index') }}" enctype="multipart/form-data" data-loading-target="upload-status" data-loading-text="Processing transcript..." data-loading-label="Processing...">
     <label for="srt_file">Select SRT or DOCX file / 选择 SRT 或 DOCX 文件：</label>
     <input type="file" id="srt_file" name="srt_file" accept=".srt,.docx" required />
     <button type="submit">Search</button>
@@ -46,6 +46,13 @@
                     <input type="hidden" name="video_source" value="{{ video.source }}" />
                     <input type="hidden" name="video_channel" value="{{ video.channel }}" />
                     <input type="hidden" name="page" value="srt" />
+                    {% if pagination %}
+                      <input type="hidden" name="pagination_next_index" value="{{ pagination.next_index }}" />
+                      <input type="hidden" name="pagination_total_segments" value="{{ pagination.total_segments }}" />
+                      <input type="hidden" name="pagination_has_more" value="{{ 1 if pagination.has_more else 0 }}" />
+                      <input type="hidden" name="pagination_current_start" value="{{ pagination.current_start }}" />
+                      <input type="hidden" name="pagination_current_end" value="{{ pagination.current_end }}" />
+                    {% endif %}
                     <label>Start (s): <input type="number" name="start_time" step="0.1" min="0" /></label>
                     <label>End (s): <input type="number" name="end_time" step="0.1" min="0" /></label>
                     <button type="submit">Download clip</button>
@@ -62,7 +69,7 @@
   {% endif %}
 
   {% if pagination and pagination.has_more and metadata_path and output_dir %}
-    <form method="post" class="notice">
+    <form method="post" action="{{ url_for('index') }}" class="notice">
       <p>More text remains to be processed. Continue to analyze the next batch of segments.</p>
       <input type="hidden" name="continue_page" value="1" />
       <input type="hidden" name="output_dir" value="{{ output_dir }}" />
